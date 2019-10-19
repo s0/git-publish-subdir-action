@@ -129,6 +129,10 @@ const config: Config = (() => {
   if (config.mode === 'ssh') {
     // Copy over the known_hosts file if set
     let known_hosts = config.knownHostsFile;
+    // Use well-known known_hosts for certain domains
+    // if (!known_hosts && config.parsedUrl.resource === 'github.com') {
+    //   known_hosts = KNOWN_HOSTS_GITHUB;
+    // }
     if (!known_hosts) {
       console.warn(KNOWN_HOSTS_WARNING);
     } else {
@@ -136,6 +140,9 @@ const config: Config = (() => {
       await copyFile(known_hosts, KNOWN_HOSTS_TARGET);
     }
   }
+  console.log(SSH_FOLDER);
+  const r = await exec(`ls -la "${SSH_FOLDER}"`);
+  console.log(r.stdout);
 
   // Clone the target repo
   await exec(`git clone "${config.repo}" "${REPO_TEMP}"`).catch(err => {
