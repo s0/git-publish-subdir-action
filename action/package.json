@@ -1,0 +1,12 @@
+{
+  "name": "git-publish-subdir-action",
+  "scripts": {
+    "build": "tsc",
+    "start": "node lib"
+  },
+  "devDependencies": {
+    "typescript": "^3.6.4"
+  },
+  "dependencies": {
+  }
+}

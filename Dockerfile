@@ -8,3 +8,12 @@ LABEL "com.github.actions.color"="purple"
 LABEL "repository"="https://github.com/s0/git-publish-subdir-action"
 LABEL "homepage"="https://github.com/s0/git-publish-subdir-action"
 LABEL "maintainer"="Sam Lanning <sam@samlanning.com>"
+
+RUN apt-get update
+RUN apt-get -y install nodejs npm
+
+ADD action /opt/action
+WORKDIR /opt/action
+RUN npm install
+RUN npm run build
+ENTRYPOINT ["npm", "run", "start"]
