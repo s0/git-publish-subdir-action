@@ -215,9 +215,12 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
   });
 
   // Fetch branch if it exists
-  await exec(`git fetch origin ${config.branch}:${config.branch}`, {env, cwd: REPO_TEMP}).catch((err) => {
-    console.error('##[warning] Failed to fetch target branch, probably doesn\'t exist')
-    console.error(err);
+  await exec(`git fetch origin ${config.branch}:${config.branch}`, { env, cwd: REPO_TEMP }).catch(err => {
+    const s = err.toString();
+    if (s.indexOf('Couldn\'t find remote ref') === -1) {
+      console.error('##[warning] Failed to fetch target branch, probably doesn\'t exist')
+      console.error(err);
+    }
   });
 
   // Check if branch already exists
