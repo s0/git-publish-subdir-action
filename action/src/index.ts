@@ -59,6 +59,12 @@ This is probably because you forgot to supply a value for KNOWN_HOSTS_FILE
 or the file is invalid or doesn't correctly verify the host ${host}
 `;
 
+const SSH_KEY_ERROR = `
+##[error] Permission denied (publickey)
+Make sure that the ssh private key is set correctly, and
+that the public key has been added to the target repo
+`;
+
 interface BaseConfig {
   branch: string;
   folder: string;
@@ -121,6 +127,12 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
   child.stdin.write(opts.data);
   child.stdin.end();
   child.on('error', reject);
+  child.stdout.on('data', (data) => {
+    console.log(data.toString());
+  });
+  child.stderr.on('data', (data) => {
+    console.error(data.toString());
+  });
   child.on('close', (code) => {
     if (code === 0) {
       resolve();
@@ -160,7 +172,7 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
 
     // Setup ssh-agent with private key
     await exec(`ssh-agent -a ${SSH_AUTH_SOCK}`);
-    await writeToProcess('ssh-agent', ['-a', SSH_AUTH_SOCK], {
+    await writeToProcess('ssh-add', ['-'], {
       data: config.privateKey,
       env: {
         SSH_AUTH_SOCK
@@ -176,6 +188,8 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
   }).catch(err => {
     if (err.toString().indexOf("Host key verification failed") !== -1) {
       console.error(KNOWN_HOSTS_ERROR(config.parsedUrl.resource));
+    } else if (err.toString().indexOf("Permission denied (publickey)") !== -1) {
+      console.error(SSH_KEY_ERROR);
     }
     throw err;
   });
