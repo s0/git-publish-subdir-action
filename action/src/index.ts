@@ -1,8 +1,10 @@
+import * as child_process from 'child_process';
 import * as fs from 'fs';
 import gitUrlParse from "git-url-parse";
 import {promisify} from 'util';
 
 const readFile = promisify(fs.readFile);
+const exec = promisify(child_process.exec);
 
 // Environment Variables
 
@@ -78,7 +80,6 @@ const config: Config = (() => {
   throw new Error('Unsupported REPO URL');
 })();
 
-
 (async () => {
 
   if (!GITHUB_EVENT_PATH)
@@ -89,7 +90,12 @@ const config: Config = (() => {
   const name = event.pusher && event.pusher.name || process.env.GITHUB_ACTOR || 'Git Publish Subdirectory';
   const email = event.pusher && event.pusher.email || (process.env.GITHUB_ACTOR ? `${process.env.GITHUB_ACTOR}@users.noreply.github.com` : 'nobody@nowhere');
 
+  // Set Git Config
+  await exec(`git config --global user.name "${name}"`);
+  await exec(`git config --global user.email "${email}"`);
+
   console.log(event);
   console.log(name);
   console.log(email);
+  await exec(`git somegarbage`);
 })();
