@@ -87,7 +87,7 @@ const config: Config = (() => {
   const event: Event = JSON.parse((await readFile(GITHUB_EVENT_PATH)).toString());
 
   const name = event.pusher && event.pusher.name || process.env.GITHUB_ACTOR || 'Git Publish Subdirectory';
-  const email = event.pusher && event.pusher.email || process.env.GITHUB_ACTOR ? `${process.env.GITHUB_ACTOR}@users.noreply.github.com` : 'nobody@nowhere';
+  const email = event.pusher && event.pusher.email || (process.env.GITHUB_ACTOR ? `${process.env.GITHUB_ACTOR}@users.noreply.github.com` : 'nobody@nowhere');
 
   console.log(event);
   console.log(name);
