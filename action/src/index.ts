@@ -243,6 +243,8 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
   await exec(`git rm -rf .`, { env, cwd: REPO_TEMP }).catch(err => { });
   const folder = path.resolve(process.cwd(), config.folder);
   console.log(`##[info] Copying all files from ${folder}`);
+  console.log((await exec(`ls -la ${process.cwd()}`, { env, cwd: REPO_TEMP })).stdout);
+  console.log((await exec(`ls -la ${folder}`, { env, cwd: REPO_TEMP })).stdout);
   await exec(`cp -r ${folder}/* ./`, { env, cwd: REPO_TEMP });
   await exec(`git add -A .`, { env, cwd: REPO_TEMP });
   const sha = process.env.GITHUB_SHA ? process.env.GITHUB_SHA.substr(0, 7) : 'unknown';
