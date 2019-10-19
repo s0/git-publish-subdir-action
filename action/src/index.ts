@@ -52,11 +52,10 @@ const KNOWN_HOSTS_WARNING = `
 This will probably mean that host verification will fail later on
 `;
 
-const KNOWN_HOSTS_ERROR = `
+const KNOWN_HOSTS_ERROR = (host: string) => `
 ##[error] Host key verification failed!
-
 This is probably because you forgot to supply a value for KNOWN_HOSTS_FILE
-or the file 
+or the file is invalid or doesn't correctly verify the host ${host}
 `;
 
 interface BaseConfig {
@@ -141,7 +140,7 @@ const config: Config = (() => {
   // Clone the target repo
   await exec(`git clone "${config.repo}" "${REPO_TEMP}"`).catch(err => {
     if (err.toString().indexOf("Host key verification failed") !== -1) {
-      throw new Error(KNOWN_HOSTS_ERROR);
+      console.error(KNOWN_HOSTS_ERROR(config.parsedUrl.resource));
     }
     throw err;
   });
