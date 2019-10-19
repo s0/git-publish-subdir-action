@@ -143,6 +143,9 @@ const config: Config = (() => {
   console.log(SSH_FOLDER);
   const r = await exec(`ls -la "${SSH_FOLDER}"`);
   console.log(r.stdout);
+  console.log((await exec(`cat ${KNOWN_HOSTS_TARGET}`)).stdout);
+  console.log(`\n\n`);
+  console.log((await exec(`ssh-keyscan github.com`)).stdout);
 
   // Clone the target repo
   await exec(`git clone "${config.repo}" "${REPO_TEMP}"`).catch(err => {
