@@ -35,10 +35,21 @@ const SSH_PRIVATE_KEY = process.env.SSH_PRIVATE_KEY;
  */
 const KNOWN_HOSTS_FILE = process.env.KNOWN_HOSTS_FILE;
 
+/**
+ * The GITHUB_TOKEN secret
+ */
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+
+// Implicit environment variables passed by GitHub
+
+const GITHUB_REPOSITORY = process.env.GITHUB_REPOSITORY;
 const GITHUB_EVENT_PATH = process.env.GITHUB_EVENT_PATH;
+const GITHUB_SHA = process.env.GITHUB_SHA;
+const GITHUB_ACTOR = process.env.GITHUB_ACTOR;
 
 // Paths
 
+const REPO_SELF = 'self';
 const REPO_TEMP = '/tmp/repo';
 const RESOURCES = path.join(path.dirname(__dirname), 'resources');
 const KNOWN_HOSTS_GITHUB = path.join(RESOURCES, 'known_hosts_github.com');
@@ -84,7 +95,11 @@ interface SshConfig extends BaseConfig {
   knownHostsFile?: string;
 }
 
-type Config = SshConfig;
+interface SelfConfig extends BaseConfig {
+  mode: 'self';
+}
+
+type Config = SshConfig | SelfConfig;
 
 interface Event {
   pusher?: {
@@ -106,6 +121,20 @@ const config: Config = (() => {
   const folder = FOLDER;
 
   // Determine the type of URL
+  if (repo === REPO_SELF) {
+    if (!GITHUB_TOKEN)
+      throw new Error('GITHUB_TOKEN must be specified when REPO == self');
+    if (!GITHUB_REPOSITORY)
+      throw new Error('GITHUB_REPOSITORY must be specified when REPO == self');
+    const url = `https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git`
+    const config: Config = {
+      repo: url,
+      branch,
+      folder,
+      mode: 'self'
+    };
+    return config;
+  }
   const parsedUrl = gitUrlParse(REPO);
 
   if (parsedUrl.protocol === 'ssh') {
@@ -119,7 +148,7 @@ const config: Config = (() => {
       parsedUrl,
       privateKey: SSH_PRIVATE_KEY,
       knownHostsFile: KNOWN_HOSTS_FILE
-    }
+    };
     return config;
   }
   throw new Error('Unsupported REPO URL');
@@ -158,8 +187,8 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
 
   const event: Event = JSON.parse((await readFile(GITHUB_EVENT_PATH)).toString());
 
-  const name = event.pusher && event.pusher.name || process.env.GITHUB_ACTOR || 'Git Publish Subdirectory';
-  const email = event.pusher && event.pusher.email || (process.env.GITHUB_ACTOR ? `${process.env.GITHUB_ACTOR}@users.noreply.github.com` : 'nobody@nowhere');
+  const name = event.pusher && event.pusher.name || GITHUB_ACTOR || 'Git Publish Subdirectory';
+  const email = event.pusher && event.pusher.email || (GITHUB_ACTOR ? `${GITHUB_ACTOR}@users.noreply.github.com` : 'nobody@nowhere');
 
   // Set Git Config
   await exec(`git config --global user.name "${name}"`);
@@ -206,10 +235,12 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
     env
   }).catch(err => {
     const s = err.toString();
-    if (s.indexOf("Host key verification failed") !== -1) {
-      console.error(KNOWN_HOSTS_ERROR(config.parsedUrl.resource));
-    } else if (s.indexOf("Permission denied (publickey)") !== -1) {
-      console.error(SSH_KEY_ERROR);
+    if (config.mode === 'ssh') {
+      if (s.indexOf("Host key verification failed") !== -1) {
+        console.error(KNOWN_HOSTS_ERROR(config.parsedUrl.resource));
+      } else if (s.indexOf("Permission denied (publickey)") !== -1) {
+        console.error(SSH_KEY_ERROR);
+      }
     }
     throw err;
   });
@@ -246,7 +277,7 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
   // TODO: replace this copy with a node implementation
   await exec(`cp -r ${folder}/* ./`, { env, cwd: REPO_TEMP });
   await exec(`git add -A .`, { env, cwd: REPO_TEMP });
-  const sha = process.env.GITHUB_SHA ? process.env.GITHUB_SHA.substr(0, 7) : 'unknown';
+  const sha = GITHUB_SHA ? GITHUB_SHA.substr(0, 7) : 'unknown';
   await exec(`git commit --allow-empty -m "Update ${config.branch} to output generated at ${sha}"`, { env, cwd: REPO_TEMP });
   console.log(`##[info] Pushing`);
   const push = await exec(`git push origin "${config.branch}"`, { env, cwd: REPO_TEMP });
