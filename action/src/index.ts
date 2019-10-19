@@ -151,6 +151,8 @@ const config: Config = (() => {
   console.log(`\n\n`);
   console.log((await exec(`whoami`)).stdout);
   console.log(`\n\n`);
+  console.log(process.env.HOME);
+  console.log(`\n\n`);
   console.log((await exec(`ps au`)).stdout);
 
   // Clone the target repo
