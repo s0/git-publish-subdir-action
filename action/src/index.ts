@@ -184,18 +184,6 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
       await copyFile(known_hosts, KNOWN_HOSTS_TARGET);
     }
 
-    await writeToProcess('cat', [], {
-      data: `here is some
-      multiline
-      test
-      data`,
-      env
-    });
-
-    console.log(config.privateKey.split('\n').length);
-    console.log(config.privateKey[0]);
-    console.log(config.privateKey[config.privateKey.length-1]);
-
     // Setup ssh-agent with private key
     console.log(`Setting up ssh-agent on ${SSH_AUTH_SOCK}`);
     await exec(`ssh-agent -a ${SSH_AUTH_SOCK}`, {env});
