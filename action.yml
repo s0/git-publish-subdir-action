@@ -1,0 +1,10 @@
+# action.yml
+name: 'Push git subdirectory as branch'
+description: 'Push a subdirectory as a branch to any git repo over SSH (or to the local repo)'
+author: 'Sam Lanning <sam@samlanning.com>'
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+branding:
+  icon: 'upload-cloud'
+  color: 'purple'
