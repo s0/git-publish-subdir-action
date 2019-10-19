@@ -130,6 +130,7 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
     env: opts.env,
     stdio: "pipe"
   });
+  child.stdin.setDefaultEncoding('utf-8');
   child.stdin.write(opts.data);
   child.stdin.end();
   child.on('error', reject);
