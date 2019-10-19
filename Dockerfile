@@ -1,7 +1,7 @@
 FROM node:10-buster
 
-LABEL "com.github.actions.name"="Git Publish Subdirectory"
-LABEL "com.github.actions.description"="Push a subdirectory as a branch to any git repo over SSH"
+LABEL "com.github.actions.name"="Push git subdirectory as branch"
+LABEL "com.github.actions.description"="Push a subdirectory as a branch to any git repo over SSH (or to the local repo)"
 LABEL "com.github.actions.icon"="upload-cloud"
 LABEL "com.github.actions.color"="purple"
 

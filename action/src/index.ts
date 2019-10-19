@@ -34,7 +34,6 @@ const SSH_PRIVATE_KEY = process.env.SSH_PRIVATE_KEY;
  * The file path of a known_hosts file with fingerprint of the relevant server
  */
 const KNOWN_HOSTS_FILE = process.env.KNOWN_HOSTS_FILE;
-
 /**
  * The GITHUB_TOKEN secret
  */
