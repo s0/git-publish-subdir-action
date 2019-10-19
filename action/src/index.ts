@@ -130,9 +130,9 @@ const config: Config = (() => {
     // Copy over the known_hosts file if set
     let known_hosts = config.knownHostsFile;
     // Use well-known known_hosts for certain domains
-    // if (!known_hosts && config.parsedUrl.resource === 'github.com') {
-    //   known_hosts = KNOWN_HOSTS_GITHUB;
-    // }
+    if (!known_hosts && config.parsedUrl.resource === 'github.com') {
+      known_hosts = KNOWN_HOSTS_GITHUB;
+    }
     if (!known_hosts) {
       console.warn(KNOWN_HOSTS_WARNING);
     } else {
