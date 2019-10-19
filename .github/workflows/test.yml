@@ -79,3 +79,4 @@ jobs:
         REPO: self
         BRANCH: test-branch
         FOLDER: dummy
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
