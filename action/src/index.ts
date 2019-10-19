@@ -44,7 +44,7 @@ const RESOURCES = path.join(path.dirname(__dirname), 'resources');
 const KNOWN_HOSTS_GITHUB = path.join(RESOURCES, 'known_hosts_github.com');
 const SSH_FOLDER = path.join(homedir(), '.ssh'); // TODO: fix
 const KNOWN_HOSTS_TARGET = path.join(SSH_FOLDER, 'known_hosts');
-const SSH_AUTH_SOCK = '/tmp/ssh_agent.sock'
+const SSH_AUTH_SOCK = '/tmp/ssh_agent_git_publish_subdir.sock'
 
 // Error messages
 
