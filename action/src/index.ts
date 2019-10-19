@@ -35,11 +35,11 @@ const REPO_TEMP = '/tmp/repo';
 interface BaseConfig {
   branch: string;
   folder: string;
+  repo: string;
 }
 
 interface SshConfig extends BaseConfig {
   mode: 'ssh';
-  url: string;
   privateKey: string;
 }
 
@@ -60,19 +60,21 @@ const config: Config = (() => {
   if (!FOLDER)
     throw new Error('FOLDER must be specified');
 
-  // Determine the type of URL
+  const repo = REPO;
   const branch = BRANCH;
   const folder = FOLDER;
+
+  // Determine the type of URL
   const url = gitUrlParse(REPO);
 
   if (url.protocol === 'ssh') {
     if (!SSH_PRIVATE_KEY)
       throw new Error('SSH_PRIVATE_KEY must be specified when REPO uses ssh');
     const config: Config = {
+      repo,
       branch,
       folder,
       mode: 'ssh',
-      url: REPO,
       privateKey: SSH_PRIVATE_KEY
     }
     return config;
@@ -97,5 +99,17 @@ const config: Config = (() => {
   console.log(event);
   console.log(name);
   console.log(email);
-  await exec(`git somegarbage`);
-})();
+
+  // Clone the target repo
+  await exec(`git clone "${config.repo}" "${REPO_TEMP}"`);
+
+  // Fetch branch if it exists
+  await exec(`git fetch origin ${config.branch}:${config.branch}`).catch(() =>
+    console.error('Failed to fetch target branch, probably doesn\'t exist')
+  );
+
+  await exec(`git some garbage`);
+})().catch(err => {
+  console.error(err);
+  process.exit(1);
+});
