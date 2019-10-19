@@ -1,0 +1,16 @@
+name: A workflow for my Hello World file
+on: push
+
+jobs:
+  deploy-ssh-no-branch:
+    name: Test deploying to a new branch
+    runs-on: ubuntu-latest    
+    steps:
+    - uses: actions/checkout@master
+    - uses: ./
+  deploy-ssh-existing-branch:
+    name: Test deploying to a pre-existing branch
+    runs-on: ubuntu-latest    
+    steps:
+    - uses: actions/checkout@master
+    - uses: ./
