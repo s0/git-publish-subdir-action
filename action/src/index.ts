@@ -21,6 +21,11 @@ const FOLDER = process.env.FOLDER;
  */
 const SSH_PRIVATE_KEY = process.env.SSH_PRIVATE_KEY;
 
+const GITHUB_EVENT_PATH = process.env.GITHUB_EVENT_PATH;
+
+// Constants
+const REPO_TEMP = '/tmp/repo';
+
 interface BaseConfig {
   branch: string;
   folder: string;
@@ -60,4 +65,9 @@ const config: Config = (() => {
     return config;
   }
   throw new Error('Unsupported REPO URL');
+})();
+
+
+(async () => {
+  console.log(GITHUB_EVENT_PATH);
 })();
