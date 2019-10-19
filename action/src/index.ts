@@ -1,10 +1,14 @@
 import * as child_process from 'child_process';
 import * as fs from 'fs';
 import gitUrlParse from "git-url-parse";
-import {promisify} from 'util';
+import { homedir } from 'os';
+import * as path from 'path';
+import { promisify } from 'util';
 
 const readFile = promisify(fs.readFile);
 const exec = promisify(child_process.exec);
+const copyFile = promisify(fs.copyFile);
+const mkdir = promisify(fs.mkdir);
 
 // Environment Variables
 
@@ -26,11 +30,34 @@ const FOLDER = process.env.FOLDER;
  * The private key to use for publishing if REPO is an SSH repo
  */
 const SSH_PRIVATE_KEY = process.env.SSH_PRIVATE_KEY;
+/**
+ * The file path of a known_hosts file with fingerprint of the relevant server
+ */
+const KNOWN_HOSTS_FILE = process.env.KNOWN_HOSTS_FILE;
 
 const GITHUB_EVENT_PATH = process.env.GITHUB_EVENT_PATH;
 
-// Constants
+// Paths
+
 const REPO_TEMP = '/tmp/repo';
+const RESOURCES = path.join(path.dirname(__dirname), 'resources');
+const KNOWN_HOSTS_GITHUB = path.join(RESOURCES, 'known_hosts_github.com');
+const SSH_FOLDER = path.join(homedir(), '.ssh');
+const KNOWN_HOSTS_TARGET = path.join(SSH_FOLDER, 'known_hosts');
+
+// Error messages
+
+const KNOWN_HOSTS_WARNING = `
+##[warning] KNOWN_HOSTS_FILE not set
+This will probably mean that host verification will fail later on
+`;
+
+const KNOWN_HOSTS_ERROR = `
+##[error] Host key verification failed!
+
+This is probably because you forgot to supply a value for KNOWN_HOSTS_FILE
+or the file 
+`;
 
 interface BaseConfig {
   branch: string;
@@ -40,7 +67,9 @@ interface BaseConfig {
 
 interface SshConfig extends BaseConfig {
   mode: 'ssh';
+  parsedUrl: gitUrlParse.GitUrl;
   privateKey: string;
+  knownHostsFile?: string;
 }
 
 type Config = SshConfig;
@@ -65,9 +94,9 @@ const config: Config = (() => {
   const folder = FOLDER;
 
   // Determine the type of URL
-  const url = gitUrlParse(REPO);
+  const parsedUrl = gitUrlParse(REPO);
 
-  if (url.protocol === 'ssh') {
+  if (parsedUrl.protocol === 'ssh') {
     if (!SSH_PRIVATE_KEY)
       throw new Error('SSH_PRIVATE_KEY must be specified when REPO uses ssh');
     const config: Config = {
@@ -75,7 +104,9 @@ const config: Config = (() => {
       branch,
       folder,
       mode: 'ssh',
-      privateKey: SSH_PRIVATE_KEY
+      parsedUrl,
+      privateKey: SSH_PRIVATE_KEY,
+      knownHostsFile: KNOWN_HOSTS_FILE
     }
     return config;
   }
@@ -96,19 +127,29 @@ const config: Config = (() => {
   await exec(`git config --global user.name "${name}"`);
   await exec(`git config --global user.email "${email}"`);
 
-  console.log(event);
-  console.log(name);
-  console.log(email);
+  if (config.mode === 'ssh') {
+    // Copy over the known_hosts file if set
+    let known_hosts = config.knownHostsFile;
+    if (!known_hosts) {
+      console.warn(KNOWN_HOSTS_WARNING);
+    } else {
+      await mkdir(SSH_FOLDER, {recursive: true});
+      await copyFile(known_hosts, KNOWN_HOSTS_TARGET);
+    }
+  }
 
   // Clone the target repo
-  await exec(`git clone "${config.repo}" "${REPO_TEMP}"`);
+  await exec(`git clone "${config.repo}" "${REPO_TEMP}"`).catch(err => {
+    if (err.toString().indexOf("Host key verification failed") !== -1) {
+      throw new Error(KNOWN_HOSTS_ERROR);
+    }
+    throw err;
+  });
 
   // Fetch branch if it exists
   await exec(`git fetch origin ${config.branch}:${config.branch}`).catch(() =>
     console.error('Failed to fetch target branch, probably doesn\'t exist')
   );
-
-  await exec(`git some garbage`);
 })().catch(err => {
   console.error(err);
   process.exit(1);
