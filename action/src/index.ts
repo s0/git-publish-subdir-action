@@ -42,7 +42,7 @@ const GITHUB_EVENT_PATH = process.env.GITHUB_EVENT_PATH;
 const REPO_TEMP = '/tmp/repo';
 const RESOURCES = path.join(path.dirname(__dirname), 'resources');
 const KNOWN_HOSTS_GITHUB = path.join(RESOURCES, 'known_hosts_github.com');
-const SSH_FOLDER = path.join('/root', '.ssh'); // TODO: fix
+const SSH_FOLDER = path.join(homedir(), '.ssh'); // TODO: fix
 const KNOWN_HOSTS_TARGET = path.join(SSH_FOLDER, 'known_hosts');
 
 // Error messages
