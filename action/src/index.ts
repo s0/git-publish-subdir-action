@@ -1,4 +1,8 @@
+import * as fs from 'fs';
 import gitUrlParse from "git-url-parse";
+import {promisify} from 'util';
+
+const readFile = promisify(fs.readFile);
 
 // Environment Variables
 
@@ -39,6 +43,13 @@ interface SshConfig extends BaseConfig {
 
 type Config = SshConfig;
 
+interface Event {
+  pusher?: {
+    email?: string;
+    name?: string;
+  }
+}
+
 const config: Config = (() => {
   if (!REPO)
     throw new Error('REPO must be specified');
@@ -69,5 +80,16 @@ const config: Config = (() => {
 
 
 (async () => {
-  console.log(GITHUB_EVENT_PATH);
+
+  if (!GITHUB_EVENT_PATH)
+    throw new Error('Expected GITHUB_EVENT_PATH');
+
+  const event: Event = JSON.parse((await readFile(GITHUB_EVENT_PATH)).toString());
+
+  const name = event.pusher && event.pusher.name || process.env.GITHUB_ACTOR || 'Git Publish Subdirectory';
+  const email = event.pusher && event.pusher.email || process.env.GITHUB_ACTOR ? `${process.env.GITHUB_ACTOR}@users.noreply.github.com` : 'nobody@nowhere';
+
+  console.log(event);
+  console.log(name);
+  console.log(email);
 })();
