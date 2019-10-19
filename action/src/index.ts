@@ -44,6 +44,7 @@ const RESOURCES = path.join(path.dirname(__dirname), 'resources');
 const KNOWN_HOSTS_GITHUB = path.join(RESOURCES, 'known_hosts_github.com');
 const SSH_FOLDER = path.join(homedir(), '.ssh'); // TODO: fix
 const KNOWN_HOSTS_TARGET = path.join(SSH_FOLDER, 'known_hosts');
+const SSH_AUTH_SOCK = '/tmp/ssh_agent.sock'
 
 // Error messages
 
@@ -112,6 +113,23 @@ const config: Config = (() => {
   throw new Error('Unsupported REPO URL');
 })();
 
+const writeToProcess = (command: string, args: string[], opts: {env: { [id: string]: string }; data: string;} ) => new Promise((resolve, reject) => {
+  const child = child_process.spawn('ssh-agent', ['-a', SSH_AUTH_SOCK], {
+    env: opts.env,
+    stdio: "pipe"
+  });
+  child.stdin.write(opts.data);
+  child.stdin.end();
+  child.on('error', reject);
+  child.on('close', (code) => {
+    if (code === 0) {
+      resolve();
+    } else {
+      reject();
+    }
+  });
+});
+
 (async () => {
 
   if (!GITHUB_EVENT_PATH)
@@ -139,10 +157,23 @@ const config: Config = (() => {
       await mkdir(SSH_FOLDER, {recursive: true});
       await copyFile(known_hosts, KNOWN_HOSTS_TARGET);
     }
+
+    // Setup ssh-agent with private key
+    await exec(`ssh-agent -a ${SSH_AUTH_SOCK}`);
+    await writeToProcess('ssh-agent', ['-a', SSH_AUTH_SOCK], {
+      data: config.privateKey,
+      env: {
+        SSH_AUTH_SOCK
+      }
+    });
   }
 
   // Clone the target repo
-  await exec(`git clone "${config.repo}" "${REPO_TEMP}"`).catch(err => {
+  await exec(`git clone "${config.repo}" "${REPO_TEMP}"`, {
+    env: {
+      SSH_AUTH_SOCK
+    }
+  }).catch(err => {
     if (err.toString().indexOf("Host key verification failed") !== -1) {
       console.error(KNOWN_HOSTS_ERROR(config.parsedUrl.resource));
     }
