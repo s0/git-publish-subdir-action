@@ -13,4 +13,9 @@ ADD action /opt/action
 WORKDIR /opt/action
 RUN npm install
 RUN npm run build
+
+RUN useradd -d /github/home github
+RUN mkdir -p ~github
+RUN chown github:github ~github
+USER github
 ENTRYPOINT ["node", "/opt/action/lib"]
