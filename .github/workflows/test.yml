@@ -64,3 +64,18 @@ jobs:
         FOLDER: dummy
         SSH_PRIVATE_KEY: ${{ secrets.TESTING_PRIVATE_KEY }}
         KNOWN_HOSTS_FILE: action/resources/known_hosts_github.com
+  deploy-locally:
+    name: Test deploying to another branch of same repo
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - name: Setup Dummy Data
+      run: |
+        mkdir dummy
+        echo "foobar" > "dummy/baz"
+    - name: Deploy
+      uses: ./
+      env:
+        REPO: self
+        BRANCH: test-branch
+        FOLDER: dummy
