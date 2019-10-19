@@ -65,6 +65,12 @@ Make sure that the ssh private key is set correctly, and
 that the public key has been added to the target repo
 `;
 
+const INVALID_KEY_ERROR = `
+##[error] Error loading key: invalid format
+Please check that you're setting the environment variable
+SSH_PRIVATE_KEY correctly
+`
+
 interface BaseConfig {
   branch: string;
   folder: string;
@@ -185,6 +191,10 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
       env
     });
 
+    console.log(config.privateKey.split('\n').length);
+    console.log(config.privateKey[0]);
+    console.log(config.privateKey[config.privateKey.length-1]);
+
     // Setup ssh-agent with private key
     console.log(`Setting up ssh-agent on ${SSH_AUTH_SOCK}`);
     await exec(`ssh-agent -a ${SSH_AUTH_SOCK}`, {env});
@@ -192,6 +202,12 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
     await writeToProcess('ssh-add', ['-'], {
       data: config.privateKey,
       env
+    }).catch(err => {
+      const s = err.toString();
+      if (s.indexOf("invalid format") !== -1) {
+        console.error(INVALID_KEY_ERROR);
+      }
+      throw err;
     });
     console.log(`Private key added`);
   }
@@ -202,9 +218,10 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
       SSH_AUTH_SOCK
     }
   }).catch(err => {
-    if (err.toString().indexOf("Host key verification failed") !== -1) {
+    const s = err.toString();
+    if (s.indexOf("Host key verification failed") !== -1) {
       console.error(KNOWN_HOSTS_ERROR(config.parsedUrl.resource));
-    } else if (err.toString().indexOf("Permission denied (publickey)") !== -1) {
+    } else if (s.indexOf("Permission denied (publickey)") !== -1) {
       console.error(SSH_KEY_ERROR);
     }
     throw err;
