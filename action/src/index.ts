@@ -203,9 +203,7 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
 
   // Clone the target repo
   await exec(`git clone "${config.repo}" "${REPO_TEMP}"`, {
-    env: {
-      SSH_AUTH_SOCK
-    }
+    env
   }).catch(err => {
     const s = err.toString();
     if (s.indexOf("Host key verification failed") !== -1) {
@@ -217,9 +215,13 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
   });
 
   // Fetch branch if it exists
-  await exec(`git fetch origin ${config.branch}:${config.branch}`).catch(() =>
-    console.error('Failed to fetch target branch, probably doesn\'t exist')
-  );
+  await exec(`git fetch origin ${config.branch}:${config.branch}`, {
+    env,
+    cwd: REPO_TEMP
+  }).catch((err) => {
+    console.error('##[warning] Failed to fetch target branch, probably doesn\'t exist')
+    console.error(err);
+  });
 })().catch(err => {
   console.error(err);
   process.exit(1);
