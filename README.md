@@ -158,11 +158,11 @@ github.com ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXY
 
 All configuration options are passed in via `env`, as environment variables.
 
-| Env Variable       | Description | Required? |
-| ------------------ | ------------- | ------------- | ------------- |
-| `REPO`             | Either `self`, or an SSH url to the target repository. | Yes |
-| `BRANCH`           | The target branch to publish to.                       | Yes |
-| `FOLDER`           | The target subfolder you would like to publish         | Yes |
+| Env Variable       | Description                                            | Required?     |
+| ------------------ | ------------------------------------------------------ | ------------- |
+| `REPO`             | Either `self`, or an SSH url to the target repository. | Yes           |
+| `BRANCH`           | The target branch to publish to.                       | Yes           |
+| `FOLDER`           | The target subfolder you would like to publish         | Yes           |
 | `SSH_PRIVATE_KEY`  | The private key that should be used to authenticate on SSH. Don't include this directly in the workflow file, instead you must use [Secrets](https://help.github.com/en/articles/virtual-environments-for-github-actions#creating-and-using-secrets-encrypted-variables) | When `REPO` is an SSH URL |
 | `KNOWN_HOSTS_FILE` | Path to a file in the repository that contains the known SSH fingerprints for the target host. | When the target host is not github.com |
 | `GITHUB_TOKEN`     | Should always be equal to `${{ secrets.GITHUB_TOKEN }}` | When `REPO = self` |
