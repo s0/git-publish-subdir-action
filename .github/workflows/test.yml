@@ -1,4 +1,4 @@
-name: Test deployments work as expected
+name: Test deployments
 on: push
 
 jobs:
