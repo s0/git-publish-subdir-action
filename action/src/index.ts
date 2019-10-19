@@ -120,7 +120,7 @@ const config: Config = (() => {
 })();
 
 const writeToProcess = (command: string, args: string[], opts: {env: { [id: string]: string }; data: string;} ) => new Promise((resolve, reject) => {
-  const child = child_process.spawn('ssh-agent', ['-a', SSH_AUTH_SOCK], {
+  const child = child_process.spawn(command, args, {
     env: opts.env,
     stdio: "pipe"
   });
@@ -178,8 +178,8 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
     }
 
     // Setup ssh-agent with private key
-    // console.log(`Setting up ssh-agent on ${SSH_AUTH_SOCK}`);
-    // await exec(`ssh-agent -a ${SSH_AUTH_SOCK}`, {env});
+    console.log(`Setting up ssh-agent on ${SSH_AUTH_SOCK}`);
+    await exec(`ssh-agent -a ${SSH_AUTH_SOCK}`, {env});
     console.log(`Adding private key to ssh-agent at ${SSH_AUTH_SOCK}`);
     await writeToProcess('ssh-add', ['-'], {
       data: config.privateKey,
