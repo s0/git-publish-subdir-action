@@ -7,10 +7,30 @@ jobs:
     runs-on: ubuntu-latest    
     steps:
     - uses: actions/checkout@master
-    - uses: ./
+    - name: Setup Dummy Data
+      run: |
+        mkdir dummy
+        echo "foobar" > "baz"
+    - name: Deploy
+      uses: ./
+      env:
+        REPO: git@github.com:s0/git-publish-subdir-action-tests.git
+        BRANCH: branch-a
+        FOLDER: dummy
+        SSH_PRIVATE_KEY: ${{ secrets.TESTING_PRIVATE_KEY }}
   deploy-ssh-existing-branch:
     name: Test deploying to a pre-existing branch
     runs-on: ubuntu-latest    
     steps:
     - uses: actions/checkout@master
-    - uses: ./
+    - name: Setup Dummy Data
+      run: |
+        mkdir dummy
+        echo "foobar" > "baz"
+    - name: Deploy
+      uses: ./
+      env:
+        REPO: git@github.com:s0/git-publish-subdir-action-tests.git
+        BRANCH: branch-b
+        FOLDER: dummy
+        SSH_PRIVATE_KEY: ${{ secrets.TESTING_PRIVATE_KEY }}
