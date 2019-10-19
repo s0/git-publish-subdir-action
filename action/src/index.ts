@@ -201,7 +201,7 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
     await exec(`ssh-agent -a ${SSH_AUTH_SOCK}`, {env});
     console.log(`Adding private key to ssh-agent at ${SSH_AUTH_SOCK}`);
     await writeToProcess('ssh-add', ['-'], {
-      data: config.privateKey,
+      data: config.privateKey + '\n',
       env
     }).catch(err => {
       const s = err.toString();
