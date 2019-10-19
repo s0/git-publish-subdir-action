@@ -146,6 +146,12 @@ const config: Config = (() => {
   console.log((await exec(`cat ${KNOWN_HOSTS_TARGET}`)).stdout);
   console.log(`\n\n`);
   console.log((await exec(`ssh-keyscan github.com`)).stdout);
+  console.log(`\n\n`);
+  console.log((await exec(`cat /etc/passwd`)).stdout);
+  console.log(`\n\n`);
+  console.log((await exec(`whoami`)).stdout);
+  console.log(`\n\n`);
+  console.log((await exec(`ps au`)).stdout);
 
   // Clone the target repo
   await exec(`git clone "${config.repo}" "${REPO_TEMP}"`).catch(err => {
