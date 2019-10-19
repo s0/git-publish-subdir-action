@@ -127,17 +127,19 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
   child.stdin.write(opts.data);
   child.stdin.end();
   child.on('error', reject);
+  let stderr = '';
   child.stdout.on('data', (data) => {
     console.log(data.toString());
   });
   child.stderr.on('data', (data) => {
+    stderr += data;
     console.error(data.toString());
   });
   child.on('close', (code) => {
     if (code === 0) {
       resolve();
     } else {
-      reject();
+      reject(new Error(stderr));
     }
   });
 });
