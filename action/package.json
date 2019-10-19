@@ -5,8 +5,10 @@
     "start": "node lib"
   },
   "devDependencies": {
+    "@types/git-url-parse": "^9.0.0",
+    "@types/node": "^12.11.1",
+    "git-url-parse": "^11.1.2",
     "typescript": "^3.6.4"
   },
-  "dependencies": {
-  }
+  "dependencies": {}
 }
