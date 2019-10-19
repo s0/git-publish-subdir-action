@@ -44,7 +44,7 @@ const RESOURCES = path.join(path.dirname(__dirname), 'resources');
 const KNOWN_HOSTS_GITHUB = path.join(RESOURCES, 'known_hosts_github.com');
 const SSH_FOLDER = path.join(homedir(), '.ssh'); // TODO: fix
 const KNOWN_HOSTS_TARGET = path.join(SSH_FOLDER, 'known_hosts');
-const SSH_AUTH_SOCK = '/tmp/ssh_agent_git_publish_subdir.sock'
+const SSH_AUTH_SOCK = '/tmp/ssh_agent.sock'
 
 // Error messages
 
@@ -158,6 +158,11 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
   await exec(`git config --global user.name "${name}"`);
   await exec(`git config --global user.email "${email}"`);
 
+  // Environment to pass to children
+  const env = Object.assign({}, process.env, {
+    SSH_AUTH_SOCK
+  });
+
   if (config.mode === 'ssh') {
     // Copy over the known_hosts file if set
     let known_hosts = config.knownHostsFile;
@@ -173,13 +178,14 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
     }
 
     // Setup ssh-agent with private key
-    await exec(`ssh-agent -a ${SSH_AUTH_SOCK}`);
+    console.log(`Setting up ssh-agent on ${SSH_AUTH_SOCK}`);
+    await exec(`ssh-agent -a ${SSH_AUTH_SOCK}`, {env});
+    console.log(`Adding private key to ssh-agent at ${SSH_AUTH_SOCK}`);
     await writeToProcess('ssh-add', ['-'], {
       data: config.privateKey,
-      env: {
-        SSH_AUTH_SOCK
-      }
+      env
     });
+    console.log(`Private key added`);
   }
 
   // Clone the target repo
