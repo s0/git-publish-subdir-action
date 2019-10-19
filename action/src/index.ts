@@ -215,13 +215,40 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
   });
 
   // Fetch branch if it exists
-  await exec(`git fetch origin ${config.branch}:${config.branch}`, {
-    env,
-    cwd: REPO_TEMP
-  }).catch((err) => {
+  await exec(`git fetch origin ${config.branch}:${config.branch}`, {env, cwd: REPO_TEMP}).catch((err) => {
     console.error('##[warning] Failed to fetch target branch, probably doesn\'t exist')
     console.error(err);
   });
+
+  // Check if branch already exists
+  console.log(`##[info] Checking if branch ${config.branch} exists already`);
+  const branchCheck = await exec(`git branch --list "${config.branch}`, {env, cwd: REPO_TEMP });
+  if (branchCheck.stdout.trim() === '') {
+    // Branch does not exist yet, let's create an initial commit
+    console.log(`##[info] ${config.branch} does not exist, creating initial commit`);
+    await exec(`git checkout --orphan "${config.branch}`, { env, cwd: REPO_TEMP });
+    await exec(`git rm -rf .`, { env, cwd: REPO_TEMP }).catch(err => { });
+    await exec(`touch README.md`, { env, cwd: REPO_TEMP });
+    await exec(`git add README.md`, { env, cwd: REPO_TEMP });
+    await exec(`git commit -m "Initial ${config.branch} commit"`, { env, cwd: REPO_TEMP });
+    await exec(`git push "${config.repo}" "${config.branch}"`, { env, cwd: REPO_TEMP });
+  }
+
+  // Update contents of branch
+  console.log(`##[info] Updating branch ${config.branch}`);
+  await exec(`git checkout "${config.branch}"`, { env, cwd: REPO_TEMP });
+  await exec(`git rm -rf .`, { env, cwd: REPO_TEMP }).catch(err => { });
+  const folder = path.resolve(process.cwd(), config.folder);
+  console.log(`##[info] Copying all files from ${folder}`);
+  await exec(`cp -r ${folder}/* ./`, { env, cwd: REPO_TEMP });
+  await exec(`git add -A .`, { env, cwd: REPO_TEMP });
+  const sha = process.env.GITHUB_SHA ? process.env.GITHUB_SHA.substr(0, 7) : 'unknown';
+  await exec(`git commit --allow-empty -m "Update ${config.branch} to output generated at ${sha}"`, { env, cwd: REPO_TEMP });
+  console.log(`##[info] Pushing`);
+  const push = await exec(`git push origin "${config.branch}"`, { env, cwd: REPO_TEMP });
+  console.log(push.stdout);
+  console.log(`##[info] Deployment Successful`);
+
 })().catch(err => {
   console.error(err);
   process.exit(1);
