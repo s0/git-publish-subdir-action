@@ -222,11 +222,11 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
 
   // Check if branch already exists
   console.log(`##[info] Checking if branch ${config.branch} exists already`);
-  const branchCheck = await exec(`git branch --list "${config.branch}`, {env, cwd: REPO_TEMP });
+  const branchCheck = await exec(`git branch --list "${config.branch}"`, {env, cwd: REPO_TEMP });
   if (branchCheck.stdout.trim() === '') {
     // Branch does not exist yet, let's create an initial commit
     console.log(`##[info] ${config.branch} does not exist, creating initial commit`);
-    await exec(`git checkout --orphan "${config.branch}`, { env, cwd: REPO_TEMP });
+    await exec(`git checkout --orphan "${config.branch}"`, { env, cwd: REPO_TEMP });
     await exec(`git rm -rf .`, { env, cwd: REPO_TEMP }).catch(err => { });
     await exec(`touch README.md`, { env, cwd: REPO_TEMP });
     await exec(`git add README.md`, { env, cwd: REPO_TEMP });
