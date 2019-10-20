@@ -708,7 +708,6 @@ var writeToProcess = function (command, args, opts) { return new Promise(functio
                 env = Object.assign({}, process.env, {
                     SSH_AUTH_SOCK: SSH_AUTH_SOCK
                 });
-                console.log(env);
                 if (!(config.mode === 'ssh')) return [3 /*break*/, 11];
                 known_hosts = config.knownHostsFile;
                 // Use well-known known_hosts for certain domains
