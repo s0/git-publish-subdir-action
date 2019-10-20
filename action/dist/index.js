@@ -683,7 +683,7 @@ var writeToProcess = function (command, args, opts) { return new Promise(functio
     var TMP_PATH, REPO_TEMP, SSH_AUTH_SOCK, event, _a, _b, name, email, env, known_hosts, branchCheck, folder, sha, push;
     return __generator(this, function (_c) {
         switch (_c.label) {
-            case 0: return [4 /*yield*/, mkdtemp('git-publish-subdir-action')];
+            case 0: return [4 /*yield*/, mkdtemp(path.join(os_1.tmpdir(), 'git-publish-subdir-action-'))];
             case 1:
                 TMP_PATH = _c.sent();
                 REPO_TEMP = path.join(TMP_PATH, 'repo');
@@ -707,6 +707,7 @@ var writeToProcess = function (command, args, opts) { return new Promise(functio
                 env = Object.assign({}, process.env, {
                     SSH_AUTH_SOCK: SSH_AUTH_SOCK
                 });
+                console.log(env);
                 if (!(config.mode === 'ssh')) return [3 /*break*/, 11];
                 known_hosts = config.knownHostsFile;
                 // Use well-known known_hosts for certain domains
