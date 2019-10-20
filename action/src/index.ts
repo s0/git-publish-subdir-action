@@ -182,7 +182,7 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
 
   // Calculate paths that use temp diractory
 
-  const TMP_PATH = await mkdtemp(path.join(tmpdir(), 'git-publish-subdir-action-'));
+  const TMP_PATH = await mkdtemp(path.join(tmpdir(), 'git-publish-subdir-actions-'));
   const REPO_TEMP = path.join(TMP_PATH, 'repo');
   const SSH_AUTH_SOCK = path.join(TMP_PATH, 'ssh_agent.sock');
 
