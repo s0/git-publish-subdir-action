@@ -80,6 +80,8 @@ const KNOWN_HOSTS_GITHUB = path.join(RESOURCES, 'known_hosts_github.com');
 const SSH_FOLDER = path.join(homedir(), '.ssh');
 const KNOWN_HOSTS_TARGET = path.join(SSH_FOLDER, 'known_hosts');
 
+const SSH_AGENT_PID_EXTRACT = /SSH_AGENT_PID=([0-9]+);/;
+
 interface BaseConfig {
   branch: string;
   folder: string;
@@ -221,7 +223,10 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
 
     // Setup ssh-agent with private key
     console.log(`Setting up ssh-agent on ${SSH_AUTH_SOCK}`);
-    await exec(`ssh-agent -a ${SSH_AUTH_SOCK}`, {env});
+    const sshAgentMatch = SSH_AGENT_PID_EXTRACT.exec((await exec(`ssh-agent -a ${SSH_AUTH_SOCK}`, {env})).stdout);
+    if (!sshAgentMatch)
+      throw new Error('Unexpected output from ssh-agent');
+    env.SSH_AGENT_PID = sshAgentMatch[1];
     console.log(`Adding private key to ssh-agent at ${SSH_AUTH_SOCK}`);
     await writeToProcess('ssh-add', ['-'], {
       data: config.privateKey + '\n',
@@ -289,6 +294,11 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
   const push = await exec(`git push origin "${config.branch}"`, { env, cwd: REPO_TEMP });
   console.log(push.stdout);
   console.log(`##[info] Deployment Successful`);
+
+  if (config.mode === 'ssh') {
+    console.log(`##[info] Killing ssh-agent`);
+    await exec(`ssh-agent -k`, { env });
+  }
 
 })().catch(err => {
   console.error(err);
