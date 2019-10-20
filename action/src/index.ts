@@ -1,7 +1,7 @@
 import * as child_process from 'child_process';
 import * as fs from 'fs';
 import gitUrlParse from "git-url-parse";
-import { homedir } from 'os';
+import { homedir, tmpdir } from 'os';
 import * as path from 'path';
 import { promisify } from 'util';
 
@@ -9,6 +9,7 @@ const readFile = promisify(fs.readFile);
 const exec = promisify(child_process.exec);
 const copyFile = promisify(fs.copyFile);
 const mkdir = promisify(fs.mkdir);
+const mkdtemp = promisify(fs.mkdtemp);
 
 // Environment Variables
 
@@ -46,16 +47,6 @@ const GITHUB_EVENT_PATH = process.env.GITHUB_EVENT_PATH;
 const GITHUB_SHA = process.env.GITHUB_SHA;
 const GITHUB_ACTOR = process.env.GITHUB_ACTOR;
 
-// Paths
-
-const REPO_SELF = 'self';
-const REPO_TEMP = '/tmp/repo';
-const RESOURCES = path.join(path.dirname(__dirname), 'resources');
-const KNOWN_HOSTS_GITHUB = path.join(RESOURCES, 'known_hosts_github.com');
-const SSH_FOLDER = path.join(homedir(), '.ssh'); // TODO: fix
-const KNOWN_HOSTS_TARGET = path.join(SSH_FOLDER, 'known_hosts');
-const SSH_AUTH_SOCK = '/tmp/ssh_agent.sock'
-
 // Error messages
 
 const KNOWN_HOSTS_WARNING = `
@@ -80,6 +71,16 @@ const INVALID_KEY_ERROR = `
 Please check that you're setting the environment variable
 SSH_PRIVATE_KEY correctly
 `
+
+// Paths
+
+const REPO_SELF = 'self';
+const RESOURCES = path.join(path.dirname(__dirname), 'resources');
+const KNOWN_HOSTS_GITHUB = path.join(RESOURCES, 'known_hosts_github.com');
+const SSH_FOLDER = path.join(homedir(), '.ssh');
+const KNOWN_HOSTS_TARGET = path.join(SSH_FOLDER, 'known_hosts');
+
+const SSH_AGENT_PID_EXTRACT = /SSH_AGENT_PID=([0-9]+);/;
 
 interface BaseConfig {
   branch: string;
@@ -181,6 +182,12 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
 
 (async () => {
 
+  // Calculate paths that use temp diractory
+
+  const TMP_PATH = await mkdtemp(path.join(tmpdir(), 'git-publish-subdir-action-'));
+  const REPO_TEMP = path.join(TMP_PATH, 'repo');
+  const SSH_AUTH_SOCK = path.join(TMP_PATH, 'ssh_agent.sock');
+
   if (!GITHUB_EVENT_PATH)
     throw new Error('Expected GITHUB_EVENT_PATH');
 
@@ -198,6 +205,8 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
     SSH_AUTH_SOCK
   });
 
+  console.log(env);
+
   if (config.mode === 'ssh') {
     // Copy over the known_hosts file if set
     let known_hosts = config.knownHostsFile;
@@ -214,7 +223,10 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
 
     // Setup ssh-agent with private key
     console.log(`Setting up ssh-agent on ${SSH_AUTH_SOCK}`);
-    await exec(`ssh-agent -a ${SSH_AUTH_SOCK}`, {env});
+    const sshAgentMatch = SSH_AGENT_PID_EXTRACT.exec((await exec(`ssh-agent -a ${SSH_AUTH_SOCK}`, {env})).stdout);
+    if (!sshAgentMatch)
+      throw new Error('Unexpected output from ssh-agent');
+    env.SSH_AGENT_PID = sshAgentMatch[1];
     console.log(`Adding private key to ssh-agent at ${SSH_AUTH_SOCK}`);
     await writeToProcess('ssh-add', ['-'], {
       data: config.privateKey + '\n',
@@ -282,6 +294,11 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
   const push = await exec(`git push origin "${config.branch}"`, { env, cwd: REPO_TEMP });
   console.log(push.stdout);
   console.log(`##[info] Deployment Successful`);
+
+  if (config.mode === 'ssh') {
+    console.log(`##[info] Killing ssh-agent`);
+    await exec(`ssh-agent -k`, { env });
+  }
 
 })().catch(err => {
   console.error(err);
