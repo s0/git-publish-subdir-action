@@ -1,12 +1,13 @@
 {
   "name": "git-publish-subdir-action",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && ncc build lib",
     "start": "node lib"
   },
   "devDependencies": {
     "@types/git-url-parse": "^9.0.0",
     "@types/node": "^12.11.1",
+    "@zeit/ncc": "^0.20.5",
     "git-url-parse": "^11.1.2",
     "typescript": "^3.6.4"
   },
