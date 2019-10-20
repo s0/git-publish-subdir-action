@@ -1,4 +1,4 @@
-name: Test deployments
+name: Test branch
 on: push
 
 jobs:
@@ -105,3 +105,19 @@ jobs:
         BRANCH: test-branch
         FOLDER: dummy
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  ci:
+    name: Run Build and check output is checked-in
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - name: Use Node.js
+      uses: actions/setup-node@v1
+      with:
+        node-version: 10.x
+    - name: 'Build'
+      run: |
+        cd action
+        npm install
+        npm run build
+    - name: Check no files have changes
+      run: git diff --exit-code
