@@ -1,7 +1,7 @@
 import * as child_process from 'child_process';
 import * as fs from 'fs';
 import gitUrlParse from "git-url-parse";
-import { homedir } from 'os';
+import { homedir, tmpdir } from 'os';
 import * as path from 'path';
 import { promisify } from 'util';
 
@@ -182,7 +182,7 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
 
   // Calculate paths that use temp diractory
 
-  const TMP_PATH = await mkdtemp('git-publish-subdir-action');
+  const TMP_PATH = await mkdtemp(path.join(tmpdir(), 'git-publish-subdir-action-'));
   const REPO_TEMP = path.join(TMP_PATH, 'repo');
   const SSH_AUTH_SOCK = path.join(TMP_PATH, 'ssh_agent.sock');
 
@@ -202,6 +202,8 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
   const env = Object.assign({}, process.env, {
     SSH_AUTH_SOCK
   });
+
+  console.log(env);
 
   if (config.mode === 'ssh') {
     // Copy over the known_hosts file if set
