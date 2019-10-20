@@ -9,6 +9,7 @@ const readFile = promisify(fs.readFile);
 const exec = promisify(child_process.exec);
 const copyFile = promisify(fs.copyFile);
 const mkdir = promisify(fs.mkdir);
+const mkdtemp = promisify(fs.mkdtemp);
 
 // Environment Variables
 
@@ -46,16 +47,6 @@ const GITHUB_EVENT_PATH = process.env.GITHUB_EVENT_PATH;
 const GITHUB_SHA = process.env.GITHUB_SHA;
 const GITHUB_ACTOR = process.env.GITHUB_ACTOR;
 
-// Paths
-
-const REPO_SELF = 'self';
-const REPO_TEMP = '/tmp/repo';
-const RESOURCES = path.join(path.dirname(__dirname), 'resources');
-const KNOWN_HOSTS_GITHUB = path.join(RESOURCES, 'known_hosts_github.com');
-const SSH_FOLDER = path.join(homedir(), '.ssh'); // TODO: fix
-const KNOWN_HOSTS_TARGET = path.join(SSH_FOLDER, 'known_hosts');
-const SSH_AUTH_SOCK = '/tmp/ssh_agent.sock'
-
 // Error messages
 
 const KNOWN_HOSTS_WARNING = `
@@ -80,6 +71,14 @@ const INVALID_KEY_ERROR = `
 Please check that you're setting the environment variable
 SSH_PRIVATE_KEY correctly
 `
+
+// Paths
+
+const REPO_SELF = 'self';
+const RESOURCES = path.join(path.dirname(__dirname), 'resources');
+const KNOWN_HOSTS_GITHUB = path.join(RESOURCES, 'known_hosts_github.com');
+const SSH_FOLDER = path.join(homedir(), '.ssh');
+const KNOWN_HOSTS_TARGET = path.join(SSH_FOLDER, 'known_hosts');
 
 interface BaseConfig {
   branch: string;
@@ -180,6 +179,12 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
 });
 
 (async () => {
+
+  // Calculate paths that use temp diractory
+
+  const TMP_PATH = await mkdtemp('git-publish-subdir-action');
+  const REPO_TEMP = path.join(TMP_PATH, 'repo');
+  const SSH_AUTH_SOCK = path.join(TMP_PATH, 'ssh_agent.sock');
 
   if (!GITHUB_EVENT_PATH)
     throw new Error('Expected GITHUB_EVENT_PATH');
