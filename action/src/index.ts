@@ -205,8 +205,6 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
     SSH_AUTH_SOCK
   });
 
-  console.log(env);
-
   if (config.mode === 'ssh') {
     // Copy over the known_hosts file if set
     let known_hosts = config.knownHostsFile;
