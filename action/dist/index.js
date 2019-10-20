@@ -567,6 +567,7 @@ var readFile = util_1.promisify(fs.readFile);
 var exec = util_1.promisify(child_process.exec);
 var copyFile = util_1.promisify(fs.copyFile);
 var mkdir = util_1.promisify(fs.mkdir);
+var mkdtemp = util_1.promisify(fs.mkdtemp);
 // Environment Variables
 /**
  * The URL of the repository to push to, one-of:
@@ -599,19 +600,17 @@ var GITHUB_REPOSITORY = process.env.GITHUB_REPOSITORY;
 var GITHUB_EVENT_PATH = process.env.GITHUB_EVENT_PATH;
 var GITHUB_SHA = process.env.GITHUB_SHA;
 var GITHUB_ACTOR = process.env.GITHUB_ACTOR;
-// Paths
-var REPO_SELF = 'self';
-var REPO_TEMP = '/tmp/repo';
-var RESOURCES = path.join(path.dirname(__dirname), 'resources');
-var KNOWN_HOSTS_GITHUB = path.join(RESOURCES, 'known_hosts_github.com');
-var SSH_FOLDER = path.join(os_1.homedir(), '.ssh'); // TODO: fix
-var KNOWN_HOSTS_TARGET = path.join(SSH_FOLDER, 'known_hosts');
-var SSH_AUTH_SOCK = '/tmp/ssh_agent.sock';
 // Error messages
 var KNOWN_HOSTS_WARNING = "\n##[warning] KNOWN_HOSTS_FILE not set\nThis will probably mean that host verification will fail later on\n";
 var KNOWN_HOSTS_ERROR = function (host) { return "\n##[error] Host key verification failed!\nThis is probably because you forgot to supply a value for KNOWN_HOSTS_FILE\nor the file is invalid or doesn't correctly verify the host " + host + "\n"; };
 var SSH_KEY_ERROR = "\n##[error] Permission denied (publickey)\nMake sure that the ssh private key is set correctly, and\nthat the public key has been added to the target repo\n";
 var INVALID_KEY_ERROR = "\n##[error] Error loading key: invalid format\nPlease check that you're setting the environment variable\nSSH_PRIVATE_KEY correctly\n";
+// Paths
+var REPO_SELF = 'self';
+var RESOURCES = path.join(path.dirname(__dirname), 'resources');
+var KNOWN_HOSTS_GITHUB = path.join(RESOURCES, 'known_hosts_github.com');
+var SSH_FOLDER = path.join(os_1.homedir(), '.ssh');
+var KNOWN_HOSTS_TARGET = path.join(SSH_FOLDER, 'known_hosts');
 var config = (function () {
     if (!REPO)
         throw new Error('REPO must be specified');
@@ -681,50 +680,54 @@ var writeToProcess = function (command, args, opts) { return new Promise(functio
     });
 }); };
 (function () { return __awaiter(void 0, void 0, void 0, function () {
-    var event, _a, _b, name, email, env, known_hosts, branchCheck, folder, sha, push;
+    var TMP_PATH, REPO_TEMP, SSH_AUTH_SOCK, event, _a, _b, name, email, env, known_hosts, branchCheck, folder, sha, push;
     return __generator(this, function (_c) {
         switch (_c.label) {
-            case 0:
+            case 0: return [4 /*yield*/, mkdtemp('git-publish-subdir-action')];
+            case 1:
+                TMP_PATH = _c.sent();
+                REPO_TEMP = path.join(TMP_PATH, 'repo');
+                SSH_AUTH_SOCK = path.join(TMP_PATH, 'ssh_agent.sock');
                 if (!GITHUB_EVENT_PATH)
                     throw new Error('Expected GITHUB_EVENT_PATH');
                 _b = (_a = JSON).parse;
                 return [4 /*yield*/, readFile(GITHUB_EVENT_PATH)];
-            case 1:
+            case 2:
                 event = _b.apply(_a, [(_c.sent()).toString()]);
                 name = event.pusher && event.pusher.name || GITHUB_ACTOR || 'Git Publish Subdirectory';
                 email = event.pusher && event.pusher.email || (GITHUB_ACTOR ? GITHUB_ACTOR + "@users.noreply.github.com" : 'nobody@nowhere');
                 // Set Git Config
                 return [4 /*yield*/, exec("git config --global user.name \"" + name + "\"")];
-            case 2:
+            case 3:
                 // Set Git Config
                 _c.sent();
                 return [4 /*yield*/, exec("git config --global user.email \"" + email + "\"")];
-            case 3:
+            case 4:
                 _c.sent();
                 env = Object.assign({}, process.env, {
                     SSH_AUTH_SOCK: SSH_AUTH_SOCK
                 });
-                if (!(config.mode === 'ssh')) return [3 /*break*/, 10];
+                if (!(config.mode === 'ssh')) return [3 /*break*/, 11];
                 known_hosts = config.knownHostsFile;
                 // Use well-known known_hosts for certain domains
                 if (!known_hosts && config.parsedUrl.resource === 'github.com') {
                     known_hosts = KNOWN_HOSTS_GITHUB;
                 }
-                if (!!known_hosts) return [3 /*break*/, 4];
+                if (!!known_hosts) return [3 /*break*/, 5];
                 console.warn(KNOWN_HOSTS_WARNING);
-                return [3 /*break*/, 7];
-            case 4: return [4 /*yield*/, mkdir(SSH_FOLDER, { recursive: true })];
-            case 5:
-                _c.sent();
-                return [4 /*yield*/, copyFile(known_hosts, KNOWN_HOSTS_TARGET)];
+                return [3 /*break*/, 8];
+            case 5: return [4 /*yield*/, mkdir(SSH_FOLDER, { recursive: true })];
             case 6:
                 _c.sent();
-                _c.label = 7;
+                return [4 /*yield*/, copyFile(known_hosts, KNOWN_HOSTS_TARGET)];
             case 7:
+                _c.sent();
+                _c.label = 8;
+            case 8:
                 // Setup ssh-agent with private key
                 console.log("Setting up ssh-agent on " + SSH_AUTH_SOCK);
                 return [4 /*yield*/, exec("ssh-agent -a " + SSH_AUTH_SOCK, { env: env })];
-            case 8:
+            case 9:
                 _c.sent();
                 console.log("Adding private key to ssh-agent at " + SSH_AUTH_SOCK);
                 return [4 /*yield*/, writeToProcess('ssh-add', ['-'], {
@@ -737,11 +740,11 @@ var writeToProcess = function (command, args, opts) { return new Promise(functio
                         }
                         throw err;
                     })];
-            case 9:
+            case 10:
                 _c.sent();
                 console.log("Private key added");
-                _c.label = 10;
-            case 10: 
+                _c.label = 11;
+            case 11: 
             // Clone the target repo
             return [4 /*yield*/, exec("git clone \"" + config.repo + "\" \"" + REPO_TEMP + "\"", {
                     env: env
@@ -757,7 +760,7 @@ var writeToProcess = function (command, args, opts) { return new Promise(functio
                     }
                     throw err;
                 })];
-            case 11:
+            case 12:
                 // Clone the target repo
                 _c.sent();
                 // Fetch branch if it exists
@@ -768,62 +771,62 @@ var writeToProcess = function (command, args, opts) { return new Promise(functio
                             console.error(err);
                         }
                     })];
-            case 12:
+            case 13:
                 // Fetch branch if it exists
                 _c.sent();
                 // Check if branch already exists
                 console.log("##[info] Checking if branch " + config.branch + " exists already");
                 return [4 /*yield*/, exec("git branch --list \"" + config.branch + "\"", { env: env, cwd: REPO_TEMP })];
-            case 13:
+            case 14:
                 branchCheck = _c.sent();
-                if (!(branchCheck.stdout.trim() === '')) return [3 /*break*/, 20];
+                if (!(branchCheck.stdout.trim() === '')) return [3 /*break*/, 21];
                 // Branch does not exist yet, let's create an initial commit
                 console.log("##[info] " + config.branch + " does not exist, creating initial commit");
                 return [4 /*yield*/, exec("git checkout --orphan \"" + config.branch + "\"", { env: env, cwd: REPO_TEMP })];
-            case 14:
-                _c.sent();
-                return [4 /*yield*/, exec("git rm -rf .", { env: env, cwd: REPO_TEMP }).catch(function (err) { })];
             case 15:
                 _c.sent();
-                return [4 /*yield*/, exec("touch README.md", { env: env, cwd: REPO_TEMP })];
+                return [4 /*yield*/, exec("git rm -rf .", { env: env, cwd: REPO_TEMP }).catch(function (err) { })];
             case 16:
                 _c.sent();
-                return [4 /*yield*/, exec("git add README.md", { env: env, cwd: REPO_TEMP })];
+                return [4 /*yield*/, exec("touch README.md", { env: env, cwd: REPO_TEMP })];
             case 17:
                 _c.sent();
-                return [4 /*yield*/, exec("git commit -m \"Initial " + config.branch + " commit\"", { env: env, cwd: REPO_TEMP })];
+                return [4 /*yield*/, exec("git add README.md", { env: env, cwd: REPO_TEMP })];
             case 18:
                 _c.sent();
-                return [4 /*yield*/, exec("git push \"" + config.repo + "\" \"" + config.branch + "\"", { env: env, cwd: REPO_TEMP })];
+                return [4 /*yield*/, exec("git commit -m \"Initial " + config.branch + " commit\"", { env: env, cwd: REPO_TEMP })];
             case 19:
                 _c.sent();
-                _c.label = 20;
+                return [4 /*yield*/, exec("git push \"" + config.repo + "\" \"" + config.branch + "\"", { env: env, cwd: REPO_TEMP })];
             case 20:
+                _c.sent();
+                _c.label = 21;
+            case 21:
                 // Update contents of branch
                 console.log("##[info] Updating branch " + config.branch);
                 return [4 /*yield*/, exec("git checkout \"" + config.branch + "\"", { env: env, cwd: REPO_TEMP })];
-            case 21:
+            case 22:
                 _c.sent();
                 return [4 /*yield*/, exec("git rm -rf .", { env: env, cwd: REPO_TEMP }).catch(function (err) { })];
-            case 22:
+            case 23:
                 _c.sent();
                 folder = path.resolve(process.cwd(), config.folder);
                 console.log("##[info] Copying all files from " + folder);
                 // TODO: replace this copy with a node implementation
                 return [4 /*yield*/, exec("cp -r " + folder + "/* ./", { env: env, cwd: REPO_TEMP })];
-            case 23:
+            case 24:
                 // TODO: replace this copy with a node implementation
                 _c.sent();
                 return [4 /*yield*/, exec("git add -A .", { env: env, cwd: REPO_TEMP })];
-            case 24:
+            case 25:
                 _c.sent();
                 sha = GITHUB_SHA ? GITHUB_SHA.substr(0, 7) : 'unknown';
                 return [4 /*yield*/, exec("git commit --allow-empty -m \"Update " + config.branch + " to output generated at " + sha + "\"", { env: env, cwd: REPO_TEMP })];
-            case 25:
+            case 26:
                 _c.sent();
                 console.log("##[info] Pushing");
                 return [4 /*yield*/, exec("git push origin \"" + config.branch + "\"", { env: env, cwd: REPO_TEMP })];
-            case 26:
+            case 27:
                 push = _c.sent();
                 console.log(push.stdout);
                 console.log("##[info] Deployment Successful");
