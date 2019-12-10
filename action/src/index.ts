@@ -14,9 +14,10 @@ const mkdtemp = promisify(fs.mkdtemp);
 // Environment Variables
 
 /**
- * The URL of the repository to push to, one-of:
- * 
+ * The URL of the repository to push to, either:
+ *
  * * an ssh URL to a repository
+ * * the string `"self"`
  */
 const REPO = process.env.REPO;
 /**
