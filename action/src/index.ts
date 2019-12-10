@@ -45,7 +45,6 @@ const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 
 const GITHUB_REPOSITORY = process.env.GITHUB_REPOSITORY;
 const GITHUB_EVENT_PATH = process.env.GITHUB_EVENT_PATH;
-const GITHUB_SHA = process.env.GITHUB_SHA;
 const GITHUB_ACTOR = process.env.GITHUB_ACTOR;
 
 // Error messages
@@ -201,6 +200,9 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
   await exec(`git config --global user.name "${name}"`);
   await exec(`git config --global user.email "${email}"`);
 
+  // Get current sha of repo to use in commit message
+  const sha = (await exec(`git rev-parse HEAD`)).stdout.trim().substr(0, 7);
+
   // Environment to pass to children
   const env = Object.assign({}, process.env, {
     SSH_AUTH_SOCK
@@ -287,7 +289,6 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
   // TODO: replace this copy with a node implementation
   await exec(`cp -r ${folder}/* ./`, { env, cwd: REPO_TEMP });
   await exec(`git add -A .`, { env, cwd: REPO_TEMP });
-  const sha = GITHUB_SHA ? GITHUB_SHA.substr(0, 7) : 'unknown';
   await exec(`git commit --allow-empty -m "Update ${config.branch} to output generated at ${sha}"`, { env, cwd: REPO_TEMP });
   console.log(`##[info] Pushing`);
   const push = await exec(`git push origin "${config.branch}"`, { env, cwd: REPO_TEMP });
