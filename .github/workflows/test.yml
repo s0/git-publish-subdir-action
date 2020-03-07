@@ -4,13 +4,14 @@ on: push
 jobs:
   deploy-ssh-no-branch:
     name: Test deploying to a new branch
-    runs-on: ubuntu-latest    
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@master
     - name: Setup Dummy Data
       run: |
         mkdir dummy
         echo "foobar" > "dummy/baz"
+        echo "foobar" > "dummy/.bat"
     - name: Setup SSH Keys and known_hosts
       env:
         SSH_AUTH_SOCK: /tmp/ssh_agent.sock
@@ -33,13 +34,14 @@ jobs:
         SSH_PRIVATE_KEY: ${{ secrets.TESTING_PRIVATE_KEY }}
   deploy-ssh-existing-branch:
     name: Test deploying to a pre-existing branch
-    runs-on: ubuntu-latest    
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@master
     - name: Setup Dummy Data
       run: |
         mkdir dummy
         echo "foobar" > "dummy/baz"
+        echo "foobar" > "dummy/.bat"
     - name: Deploy
       uses: ./
       env:
@@ -49,13 +51,14 @@ jobs:
         SSH_PRIVATE_KEY: ${{ secrets.TESTING_PRIVATE_KEY }}
   deploy-ssh-existing-branch-known_hosts:
     name: Test deploying to a pre-existing branch (with KNOWN_HOSTS_FILE)
-    runs-on: ubuntu-latest    
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@master
     - name: Setup Dummy Data
       run: |
         mkdir dummy
         echo "foobar" > "dummy/baz"
+        echo "foobar" > "dummy/.bat"
     - name: Deploy
       uses: ./
       env:
@@ -66,15 +69,17 @@ jobs:
         KNOWN_HOSTS_FILE: action/resources/known_hosts_github.com
   deploy-ssh-twice:
     name: Test deploying multiple times in one job
-    runs-on: ubuntu-latest    
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@master
     - name: Setup Dummy Data
       run: |
         mkdir dummy1
         echo "foobar1" > "dummy1/baz"
+        echo "foobar1" > "dummy1/.bat"
         mkdir dummy2
         echo "foobar2" > "dummy2/baz"
+        echo "foobar2" > "dummy2/.bat"
     - name: Deploy
       uses: ./
       env:
@@ -98,6 +103,7 @@ jobs:
       run: |
         mkdir dummy
         echo "foobar" > "dummy/baz"
+        echo "foobar" > "dummy/.bat"
     - name: Deploy
       uses: ./
       env:
