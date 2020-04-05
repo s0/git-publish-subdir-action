@@ -772,7 +772,7 @@ var writeToProcess = function (command, args, opts) { return new Promise(functio
                 // Clone the target repo
                 _e.sent();
                 // Fetch branch if it exists
-                return [4 /*yield*/, exec("git fetch origin " + config.branch + ":" + config.branch, { env: env, cwd: REPO_TEMP }).catch(function (err) {
+                return [4 /*yield*/, exec("git fetch -u origin " + config.branch + ":" + config.branch, { env: env, cwd: REPO_TEMP }).catch(function (err) {
                         var s = err.toString();
                         if (s.indexOf('Couldn\'t find remote ref') === -1) {
                             console.error('##[warning] Failed to fetch target branch, probably doesn\'t exist');
