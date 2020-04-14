@@ -31,6 +31,10 @@ const FOLDER = process.env.FOLDER;
 /**
  * The private key to use for publishing if REPO is an SSH repo
  */
+const FORCE = process.env.FORCE;
+/**
+ * Hard-reset target branch and force-push. Warning! It gonna delete all the files and squash history.
+ */
 const SSH_PRIVATE_KEY = process.env.SSH_PRIVATE_KEY;
 /**
  * The file path of a known_hosts file with fingerprint of the relevant server
@@ -86,6 +90,7 @@ interface BaseConfig {
   branch: string;
   folder: string;
   repo: string;
+  force: boolean;
 }
 
 interface SshConfig extends BaseConfig {
@@ -119,6 +124,7 @@ const config: Config = (() => {
   const repo = REPO;
   const branch = BRANCH;
   const folder = FOLDER;
+  const force = FORCE ? FORCE : false;
 
   // Determine the type of URL
   if (repo === REPO_SELF) {
@@ -131,6 +137,7 @@ const config: Config = (() => {
       repo: url,
       branch,
       folder,
+      force,
       mode: 'self'
     };
     return config;
@@ -144,6 +151,7 @@ const config: Config = (() => {
       repo,
       branch,
       folder,
+      force,
       mode: 'ssh',
       parsedUrl,
       privateKey: SSH_PRIVATE_KEY,
@@ -283,6 +291,9 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
   // Update contents of branch
   console.log(`##[info] Updating branch ${config.branch}`);
   await exec(`git checkout "${config.branch}"`, { env, cwd: REPO_TEMP });
+  if (config.force === true) {
+    await exec(`git reset --HARD $(git rev-list --max-parents=0 --abbrev-commit HEAD)`, { env, cwd: REPO_TEMP });
+  }
   await exec(`git rm -rf .`, { env, cwd: REPO_TEMP }).catch(err => { });
   const folder = path.resolve(process.cwd(), config.folder);
   console.log(`##[info] Copying all files from ${folder}`);
@@ -291,7 +302,8 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
   await exec(`git add -A .`, { env, cwd: REPO_TEMP });
   await exec(`git commit --allow-empty -m "Update ${config.branch} to output generated at ${sha}"`, { env, cwd: REPO_TEMP });
   console.log(`##[info] Pushing`);
-  const push = await exec(`git push origin "${config.branch}"`, { env, cwd: REPO_TEMP });
+  const forceArg = '--force' ? config.force === true : '';
+  const push = await exec(`git push "${forceArg}" origin "${config.branch}"`, { env, cwd: REPO_TEMP });
   console.log(push.stdout);
   console.log(`##[info] Deployment Successful`);
 
