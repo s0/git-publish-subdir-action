@@ -29,7 +29,7 @@ export = async () => {
   // 
   console.log(':: Building docker containers for testing');
   await util.execWithOutput(
-    `docker build --build-arg GIT_UID=1003 -t git-ssh-server docker/git-ssh`,
+    `docker build --build-arg GIT_UID=${process.getuid()} -t git-ssh-server docker/git-ssh`,
     { cwd: util.TEST_DIR });
 
   // Start docker containers
