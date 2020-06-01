@@ -28,7 +28,7 @@ export const execWithOutput = async (
   const stdout = result.stdout.toString();
   const stderr = result.stderr.toString();
   if (stderr.length > 0) {
-    console.error(stderr);
+    console.log(stderr);
   }
   if (stdout.length > 0) {
     console.log(stdout);
@@ -36,7 +36,7 @@ export const execWithOutput = async (
   return result;
 }
 
-export const runWithEnv = async (env: EnvironmentVariables) => {
+export const runWithEnv = async (reportName: string, env: EnvironmentVariables) => {
 
   const envVars: string[] = [];
 
@@ -53,7 +53,7 @@ export const runWithEnv = async (env: EnvironmentVariables) => {
 
   const ps = child_process.spawn(
     'docker',
-    ['exec', ...envVars, '-u', 'test', 'test-node', 'npx', 'nyc', '--reporter=none', 'ts-node', '--transpile-only', 'src'],
+    ['exec', ...envVars, '-u', 'test', 'test-node', 'npx', 'nyc', '--temp-dir', `./.nyc_output/${reportName}`, '--reporter=none', 'ts-node', '--transpile-only', 'src'],
     {
       env: {
         ...process.env,
@@ -73,6 +73,7 @@ export const runWithEnv = async (env: EnvironmentVariables) => {
 }
 
 export const runWithGithubEnv = async (
+  reportName: string,
   env: EnvironmentVariables,
   repo: string,
   event: Event,
@@ -82,12 +83,18 @@ export const runWithGithubEnv = async (
   const file = path.join(DATA_DIR, `event-${new Date().getTime()}.json`);
   await writeFile(file, JSON.stringify(event));
 
-  return runWithEnv({
-    ...env,
-    GITHUB_ACTOR: actor,
-    GITHUB_REPOSITORY: repo,
-    GITHUB_EVENT_PATH: file,
-  });
+  await runWithEnv(
+    reportName,
+    {
+      ...env,
+      GITHUB_ACTOR: actor,
+      GITHUB_REPOSITORY: repo,
+      GITHUB_EVENT_PATH: file,
+    },
+  );
+
+  // Merge report
+  await exec(`docker exec -u test test-node npx nyc merge ./.nyc_output/${reportName} ./.nyc_output/${reportName}.json`);
 }
 
 /**

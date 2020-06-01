@@ -166,7 +166,7 @@ const config: Config = (() => {
   throw new Error('Unsupported REPO URL');
 })();
 
-const writeToProcess = (command: string, args: string[], opts: {env: { [id: string]: string }; data: string;} ) => new Promise((resolve, reject) => {
+const writeToProcess = (command: string, args: string[], opts: {env: { [id: string]: string | undefined }; data: string;} ) => new Promise((resolve, reject) => {
   const child = child_process.spawn(command, args, {
     env: opts.env,
     stdio: "pipe"

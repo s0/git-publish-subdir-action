@@ -19,6 +19,7 @@ it('Deploy to a new branch over ssh', async () => {
 
   // Run Action
   await util.runWithGithubEnv(
+    path.basename(__filename),
     {
       REPO: 'ssh://git@git-ssh/git-server/repos/ssh-no-branch.git',
       BRANCH: 'branch-a',
