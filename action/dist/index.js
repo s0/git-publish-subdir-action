@@ -34,7 +34,7 @@ module.exports =
 /******/ 	// the startup function
 /******/ 	function startup() {
 /******/ 		// Load entry module and return exports
-/******/ 		return __webpack_require__(526);
+/******/ 		return __webpack_require__(593);
 /******/ 	};
 /******/
 /******/ 	// run startup
@@ -505,7 +505,7 @@ module.exports = gitUrlParse;
 
 /***/ }),
 
-/***/ 526:
+/***/ 593:
 /***/ (function(__unusedmodule, exports, __webpack_require__) {
 
 "use strict";
@@ -568,38 +568,7 @@ var exec = util_1.promisify(child_process.exec);
 var copyFile = util_1.promisify(fs.copyFile);
 var mkdir = util_1.promisify(fs.mkdir);
 var mkdtemp = util_1.promisify(fs.mkdtemp);
-// Environment Variables
-/**
- * The URL of the repository to push to, either:
- *
- * * an ssh URL to a repository
- * * the string `"self"`
- */
-var REPO = process.env.REPO;
-/**
- * The name of the branch to push to
- */
-var BRANCH = process.env.BRANCH;
-/**
- * Which subdirectory in the repository to we want to push as the contents of the branch
- */
-var FOLDER = process.env.FOLDER;
-/**
- * The private key to use for publishing if REPO is an SSH repo
- */
-var SSH_PRIVATE_KEY = process.env.SSH_PRIVATE_KEY;
-/**
- * The file path of a known_hosts file with fingerprint of the relevant server
- */
-var KNOWN_HOSTS_FILE = process.env.KNOWN_HOSTS_FILE;
-/**
- * The GITHUB_TOKEN secret
- */
-var GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-// Implicit environment variables passed by GitHub
-var GITHUB_REPOSITORY = process.env.GITHUB_REPOSITORY;
-var GITHUB_EVENT_PATH = process.env.GITHUB_EVENT_PATH;
-var GITHUB_ACTOR = process.env.GITHUB_ACTOR;
+var ENV = process.env;
 // Error messages
 var KNOWN_HOSTS_WARNING = "\n##[warning] KNOWN_HOSTS_FILE not set\nThis will probably mean that host verification will fail later on\n";
 var KNOWN_HOSTS_ERROR = function (host) { return "\n##[error] Host key verification failed!\nThis is probably because you forgot to supply a value for KNOWN_HOSTS_FILE\nor the file is invalid or doesn't correctly verify the host " + host + "\n"; };
@@ -613,22 +582,22 @@ var SSH_FOLDER = path.join(os_1.homedir(), '.ssh');
 var KNOWN_HOSTS_TARGET = path.join(SSH_FOLDER, 'known_hosts');
 var SSH_AGENT_PID_EXTRACT = /SSH_AGENT_PID=([0-9]+);/;
 var config = (function () {
-    if (!REPO)
+    if (!ENV.REPO)
         throw new Error('REPO must be specified');
-    if (!BRANCH)
+    if (!ENV.BRANCH)
         throw new Error('BRANCH must be specified');
-    if (!FOLDER)
+    if (!ENV.FOLDER)
         throw new Error('FOLDER must be specified');
-    var repo = REPO;
-    var branch = BRANCH;
-    var folder = FOLDER;
+    var repo = ENV.REPO;
+    var branch = ENV.BRANCH;
+    var folder = ENV.FOLDER;
     // Determine the type of URL
     if (repo === REPO_SELF) {
-        if (!GITHUB_TOKEN)
+        if (!ENV.GITHUB_TOKEN)
             throw new Error('GITHUB_TOKEN must be specified when REPO == self');
-        if (!GITHUB_REPOSITORY)
+        if (!ENV.GITHUB_REPOSITORY)
             throw new Error('GITHUB_REPOSITORY must be specified when REPO == self');
-        var url = "https://x-access-token:" + GITHUB_TOKEN + "@github.com/" + GITHUB_REPOSITORY + ".git";
+        var url = "https://x-access-token:" + ENV.GITHUB_TOKEN + "@github.com/" + ENV.GITHUB_REPOSITORY + ".git";
         var config_1 = {
             repo: url,
             branch: branch,
@@ -637,9 +606,9 @@ var config = (function () {
         };
         return config_1;
     }
-    var parsedUrl = git_url_parse_1.default(REPO);
+    var parsedUrl = git_url_parse_1.default(repo);
     if (parsedUrl.protocol === 'ssh') {
-        if (!SSH_PRIVATE_KEY)
+        if (!ENV.SSH_PRIVATE_KEY)
             throw new Error('SSH_PRIVATE_KEY must be specified when REPO uses ssh');
         var config_2 = {
             repo: repo,
@@ -647,8 +616,8 @@ var config = (function () {
             folder: folder,
             mode: 'ssh',
             parsedUrl: parsedUrl,
-            privateKey: SSH_PRIVATE_KEY,
-            knownHostsFile: KNOWN_HOSTS_FILE
+            privateKey: ENV.SSH_PRIVATE_KEY,
+            knownHostsFile: ENV.KNOWN_HOSTS_FILE
         };
         return config_2;
     }
@@ -689,14 +658,14 @@ var writeToProcess = function (command, args, opts) { return new Promise(functio
                 TMP_PATH = _e.sent();
                 REPO_TEMP = path.join(TMP_PATH, 'repo');
                 SSH_AUTH_SOCK = path.join(TMP_PATH, 'ssh_agent.sock');
-                if (!GITHUB_EVENT_PATH)
+                if (!ENV.GITHUB_EVENT_PATH)
                     throw new Error('Expected GITHUB_EVENT_PATH');
                 _b = (_a = JSON).parse;
-                return [4 /*yield*/, readFile(GITHUB_EVENT_PATH)];
+                return [4 /*yield*/, readFile(ENV.GITHUB_EVENT_PATH)];
             case 2:
                 event = _b.apply(_a, [(_e.sent()).toString()]);
-                name = event.pusher && event.pusher.name || GITHUB_ACTOR || 'Git Publish Subdirectory';
-                email = event.pusher && event.pusher.email || (GITHUB_ACTOR ? GITHUB_ACTOR + "@users.noreply.github.com" : 'nobody@nowhere');
+                name = event.pusher && event.pusher.name || ENV.GITHUB_ACTOR || 'Git Publish Subdirectory';
+                email = event.pusher && event.pusher.email || (ENV.GITHUB_ACTOR ? ENV.GITHUB_ACTOR + "@users.noreply.github.com" : 'nobody@nowhere');
                 // Set Git Config
                 return [4 /*yield*/, exec("git config --global user.name \"" + name + "\"")];
             case 3:

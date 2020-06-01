@@ -11,41 +11,50 @@ const copyFile = promisify(fs.copyFile);
 const mkdir = promisify(fs.mkdir);
 const mkdtemp = promisify(fs.mkdtemp);
 
-// Environment Variables
+export interface EnvironmentVariables {
+  /**
+   * The URL of the repository to push to, either:
+   *
+   * * an ssh URL to a repository
+   * * the string `"self"`
+   */
+  REPO?: string;
+  /**
+   * The name of the branch to push to
+   */
+  BRANCH?: string;
+  /**
+   * Which subdirectory in the repository to we want to push as the contents of the branch
+   */
+  FOLDER?: string;
+  /**
+   * The private key to use for publishing if REPO is an SSH repo
+   */
+  SSH_PRIVATE_KEY?: string;
+  /**
+   * The file path of a known_hosts file with fingerprint of the relevant server
+   */
+  KNOWN_HOSTS_FILE?: string;
+  /**
+   * The GITHUB_TOKEN secret
+   */
+  GITHUB_TOKEN?: string;
 
-/**
- * The URL of the repository to push to, either:
- *
- * * an ssh URL to a repository
- * * the string `"self"`
- */
-const REPO = process.env.REPO;
-/**
- * The name of the branch to push to
- */
-const BRANCH = process.env.BRANCH;
-/**
- * Which subdirectory in the repository to we want to push as the contents of the branch
- */
-const FOLDER = process.env.FOLDER;
-/**
- * The private key to use for publishing if REPO is an SSH repo
- */
-const SSH_PRIVATE_KEY = process.env.SSH_PRIVATE_KEY;
-/**
- * The file path of a known_hosts file with fingerprint of the relevant server
- */
-const KNOWN_HOSTS_FILE = process.env.KNOWN_HOSTS_FILE;
-/**
- * The GITHUB_TOKEN secret
- */
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+  // Implicit environment variables passed by GitHub
 
-// Implicit environment variables passed by GitHub
+  GITHUB_REPOSITORY?: string;
+  GITHUB_EVENT_PATH?: string;
+  /** The name of the person / app that that initiated the workflow */
+  GITHUB_ACTOR?: string;
+}
 
-const GITHUB_REPOSITORY = process.env.GITHUB_REPOSITORY;
-const GITHUB_EVENT_PATH = process.env.GITHUB_EVENT_PATH;
-const GITHUB_ACTOR = process.env.GITHUB_ACTOR;
+declare global {
+  namespace NodeJS {
+    interface ProcessEnv extends EnvironmentVariables {}
+  }
+}
+
+const ENV: EnvironmentVariables = process.env;
 
 // Error messages
 
@@ -101,7 +110,10 @@ interface SelfConfig extends BaseConfig {
 
 type Config = SshConfig | SelfConfig;
 
-interface Event {
+/**
+ * The GitHub event that triggered this action
+ */
+export interface Event {
   pusher?: {
     email?: string;
     name?: string;
@@ -109,24 +121,24 @@ interface Event {
 }
 
 const config: Config = (() => {
-  if (!REPO)
+  if (!ENV.REPO)
     throw new Error('REPO must be specified');
-  if (!BRANCH)
+  if (!ENV.BRANCH)
     throw new Error('BRANCH must be specified');
-  if (!FOLDER)
+  if (!ENV.FOLDER)
     throw new Error('FOLDER must be specified');
 
-  const repo = REPO;
-  const branch = BRANCH;
-  const folder = FOLDER;
+  const repo = ENV.REPO;
+  const branch = ENV.BRANCH;
+  const folder = ENV.FOLDER;
 
   // Determine the type of URL
   if (repo === REPO_SELF) {
-    if (!GITHUB_TOKEN)
+    if (!ENV.GITHUB_TOKEN)
       throw new Error('GITHUB_TOKEN must be specified when REPO == self');
-    if (!GITHUB_REPOSITORY)
+    if (!ENV.GITHUB_REPOSITORY)
       throw new Error('GITHUB_REPOSITORY must be specified when REPO == self');
-    const url = `https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git`
+    const url = `https://x-access-token:${ENV.GITHUB_TOKEN}@github.com/${ENV.GITHUB_REPOSITORY}.git`
     const config: Config = {
       repo: url,
       branch,
@@ -135,10 +147,10 @@ const config: Config = (() => {
     };
     return config;
   }
-  const parsedUrl = gitUrlParse(REPO);
+  const parsedUrl = gitUrlParse(repo);
 
   if (parsedUrl.protocol === 'ssh') {
-    if (!SSH_PRIVATE_KEY)
+    if (!ENV.SSH_PRIVATE_KEY)
       throw new Error('SSH_PRIVATE_KEY must be specified when REPO uses ssh');
     const config: Config = {
       repo,
@@ -146,8 +158,8 @@ const config: Config = (() => {
       folder,
       mode: 'ssh',
       parsedUrl,
-      privateKey: SSH_PRIVATE_KEY,
-      knownHostsFile: KNOWN_HOSTS_FILE
+      privateKey: ENV.SSH_PRIVATE_KEY,
+      knownHostsFile: ENV.KNOWN_HOSTS_FILE
     };
     return config;
   }
@@ -188,13 +200,13 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
   const REPO_TEMP = path.join(TMP_PATH, 'repo');
   const SSH_AUTH_SOCK = path.join(TMP_PATH, 'ssh_agent.sock');
 
-  if (!GITHUB_EVENT_PATH)
+  if (!ENV.GITHUB_EVENT_PATH)
     throw new Error('Expected GITHUB_EVENT_PATH');
 
-  const event: Event = JSON.parse((await readFile(GITHUB_EVENT_PATH)).toString());
+  const event: Event = JSON.parse((await readFile(ENV.GITHUB_EVENT_PATH)).toString());
 
-  const name = event.pusher && event.pusher.name || GITHUB_ACTOR || 'Git Publish Subdirectory';
-  const email = event.pusher && event.pusher.email || (GITHUB_ACTOR ? `${GITHUB_ACTOR}@users.noreply.github.com` : 'nobody@nowhere');
+  const name = event.pusher && event.pusher.name || ENV.GITHUB_ACTOR || 'Git Publish Subdirectory';
+  const email = event.pusher && event.pusher.email || (ENV.GITHUB_ACTOR ? `${ENV.GITHUB_ACTOR}@users.noreply.github.com` : 'nobody@nowhere');
 
   // Set Git Config
   await exec(`git config --global user.name "${name}"`);
