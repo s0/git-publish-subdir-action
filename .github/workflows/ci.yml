@@ -144,3 +144,8 @@ jobs:
       run: |
         cd action
         npm run test
+    - name: Submit to CodeCov
+      uses: codecov/codecov-action@v1
+      with:
+        file: ./action/coverage.lcov
+        fail_ci_if_error: true
