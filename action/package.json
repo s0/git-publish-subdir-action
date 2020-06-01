@@ -1,7 +1,7 @@
 {
   "name": "git-publish-subdir-action",
   "scripts": {
-    "build": "tsc && ncc build lib",
+    "build": "tsc && ncc build lib/src",
     "start": "node lib",
     "test": "jest --projects test/jest.config.js",
     "test-run": "nyc ts-node --transpile-only src"
