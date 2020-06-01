@@ -2,14 +2,19 @@
   "name": "git-publish-subdir-action",
   "scripts": {
     "build": "tsc && ncc build lib",
-    "start": "node lib"
+    "start": "node lib",
+    "test": "nyc jest --projects test/jest.config.js"
   },
   "devDependencies": {
     "@types/git-url-parse": "^9.0.0",
+    "@types/jest": "^25.2.3",
     "@types/node": "^12.11.1",
     "@zeit/ncc": "^0.20.5",
     "git-url-parse": "^11.1.2",
+    "jest": "^26.0.1",
+    "nyc": "^15.1.0",
+    "ts-jest": "^26.1.0",
+    "ts-node": "^8.10.2",
     "typescript": "^3.6.4"
-  },
-  "dependencies": {}
+  }
 }
