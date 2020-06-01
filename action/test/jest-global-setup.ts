@@ -10,6 +10,7 @@ export = async () => {
 
   // Create Fresh Test Data Directories
   console.log(':: Preparing test data directory');
+  await util.exec('rm -rf ../.nyc_output', { cwd: util.TEST_DIR });
   await util.exec('rm -rf data', { cwd: util.TEST_DIR });
   await util.exec('mkdir data', { cwd: util.TEST_DIR });
   await util.exec('mkdir server-ssh-keys', { cwd: util.DATA_DIR });
