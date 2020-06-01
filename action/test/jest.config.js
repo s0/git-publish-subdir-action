@@ -4,4 +4,7 @@ module.exports = {
   rootDir: '../',
   globalSetup: '<rootDir>/test/jest-global-setup.ts',
   globalTeardown: '<rootDir>/test/jest-global-teardown.ts',
+  testMatch: [
+    '<rootDir>/test/**/*.spec.ts',
+  ],
 };
