@@ -1,0 +1,31 @@
+version: '3.5'
+services:
+  test-node:
+    image: "node:12"
+    user: "node"
+    working_dir: /home/node/repo/action
+    volumes:
+      - ../../:/home/node/repo
+    command: "./test/wait.js"
+    container_name: test-node
+    networks:
+      test:
+        aliases:
+          - node
+  test-git-ssh:
+    image: git-ssh-server
+    volumes:
+      - ./data/server-ssh-keys:/git-server/keys
+      - ./data/repos:/git-server/repos
+    expose:
+      - "22"
+    networks:
+      test:
+        aliases:
+          - git-ssh
+    ports:
+      - "127.0.0.1:2222:22"
+
+networks:
+  test:
+    name: test-network

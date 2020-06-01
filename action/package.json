@@ -3,7 +3,8 @@
   "scripts": {
     "build": "tsc && ncc build lib",
     "start": "node lib",
-    "test": "nyc jest --projects test/jest.config.js"
+    "test": "jest --projects test/jest.config.js",
+    "test-run": "nyc ts-node --transpile-only src"
   },
   "devDependencies": {
     "@types/git-url-parse": "^9.0.0",

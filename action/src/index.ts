@@ -44,6 +44,7 @@ export interface EnvironmentVariables {
 
   GITHUB_REPOSITORY?: string;
   GITHUB_EVENT_PATH?: string;
+  /** The name of the person / app that that initiated the workflow */
   GITHUB_ACTOR?: string;
 }
 
@@ -109,7 +110,10 @@ interface SelfConfig extends BaseConfig {
 
 type Config = SshConfig | SelfConfig;
 
-interface Event {
+/**
+ * The GitHub event that triggered this action
+ */
+export interface Event {
   pusher?: {
     email?: string;
     name?: string;
