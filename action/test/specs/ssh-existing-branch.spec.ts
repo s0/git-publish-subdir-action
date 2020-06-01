@@ -18,7 +18,7 @@ it('Deploy to a existing branch over ssh', async () => {
   await util.execWithOutput(`git clone "${REPO_DIR}" clone`, { cwd: WORK_DIR });
   await util.writeFile(path.join(REPO_CLONE_DIR, 'initial'), 'foobar');
   await util.execWithOutput(`git add -A .`, { cwd: REPO_CLONE_DIR });
-  await util.execWithOutput(`git commit -m initial`, { cwd: REPO_CLONE_DIR });
+  await util.execWithOutput(`git commit --author="Test <t@t.com>" -m initial`, { cwd: REPO_CLONE_DIR });
   await util.execWithOutput(`git push origin master`, { cwd: REPO_CLONE_DIR });
 
   // Create dummy data
