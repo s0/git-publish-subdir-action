@@ -743,7 +743,7 @@ var writeToProcess = function (command, args, opts) { return new Promise(functio
                         if (s.indexOf("Host key verification failed") !== -1) {
                             console.error(KNOWN_HOSTS_ERROR(config.parsedUrl.resource));
                         }
-                        else if (s.indexOf("Permission denied (publickey)") !== -1) {
+                        else if (s.indexOf("Permission denied (publickey") !== -1) {
                             console.error(SSH_KEY_ERROR);
                         }
                     }
