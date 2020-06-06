@@ -3,3 +3,4 @@
 /.nyc_output
 /test/data
 /coverage.lcov
+/.env

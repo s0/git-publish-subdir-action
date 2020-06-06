@@ -1,9 +1,12 @@
+import dotenv from 'dotenv';
 import * as child_process from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
 import { promisify } from 'util';
 
 import { EnvironmentVariables, Event } from '../src';
+
+dotenv.config();
 
 export const exec = promisify(child_process.exec);
 export const mkdir = promisify(fs.mkdir);
@@ -19,6 +22,13 @@ export const KNOWN_HOSTS = path.join(DATA_DIR, 'known_hosts');
 export const DOCKER_IMAGE_TEST_DIR = '/home/node/repo/action/test'
 
 export const NODE_CONTAINER = 'test-node';
+
+export const getGitHubSSHPrivateKey = () => {
+  const key = process.env.GITHUB_SSH_PRIVATE_KEY;
+  if (!key)
+    throw new Error('Environment variable GITHUB_SSH_PRIVATE_KEY not set, needed for tests');
+  return key;
+}
 
 export const execWithOutput = async (
   command: string,
@@ -36,7 +46,15 @@ export const execWithOutput = async (
   return result;
 }
 
-export const runWithEnv = async (reportName: string, env: EnvironmentVariables) => {
+interface RunOptions {
+  debug?: boolean;
+};
+
+export const runWithEnv = async (
+  reportName: string,
+  env: EnvironmentVariables,
+  opts?: RunOptions,
+) => {
 
   const envVars: string[] = [];
 
@@ -51,9 +69,17 @@ export const runWithEnv = async (reportName: string, env: EnvironmentVariables) 
     }
   }
 
+  const nodeCmd = [
+    'node',
+    ... (opts?.debug ? ['--inspect-brk'] : []),
+    '-r',
+    'ts-node/register/transpile-only',
+    'src'
+  ];
+
   const ps = child_process.spawn(
     'docker',
-    ['exec', ...envVars, '-u', 'test', 'test-node', 'npx', 'nyc', '--temp-dir', `./.nyc_output/${reportName}`, '--reporter=none', 'ts-node', '--transpile-only', 'src'],
+    ['exec', ...envVars, '-u', 'test', 'test-node', 'npx', 'nyc', '--temp-dir', `./.nyc_output/${reportName}`, '--reporter=none', ...nodeCmd],
     {
       env: {
         ...process.env,
@@ -78,6 +104,7 @@ export const runWithGithubEnv = async (
   repo: string,
   event: Event,
   actor: string,
+  opts?: RunOptions,
 ) => {
   // create event file
   const file = path.join(DATA_DIR, `event-${new Date().getTime()}.json`);
@@ -91,6 +118,7 @@ export const runWithGithubEnv = async (
       GITHUB_REPOSITORY: repo,
       GITHUB_EVENT_PATH: file,
     },
+    opts,
   );
 
   // Merge report

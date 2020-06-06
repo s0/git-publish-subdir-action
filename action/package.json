@@ -3,7 +3,7 @@
   "scripts": {
     "build": "tsc && ncc build lib/src",
     "start": "node lib",
-    "test": "jest --projects test/jest.config.js",
+    "test": "jest --projects test/jest.config.js --runInBand",
     "test-run": "nyc ts-node --transpile-only src"
   },
   "devDependencies": {
@@ -11,6 +11,7 @@
     "@types/jest": "^25.2.3",
     "@types/node": "^12.11.1",
     "@zeit/ncc": "^0.20.5",
+    "dotenv": "^8.2.0",
     "git-url-parse": "^11.1.2",
     "jest": "^26.0.1",
     "nyc": "^15.1.0",
