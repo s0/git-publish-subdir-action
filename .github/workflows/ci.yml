@@ -146,6 +146,8 @@ jobs:
         npm run test
       env:
         GITHUB_SSH_PRIVATE_KEY: ${{ secrets.TESTING_PRIVATE_KEY }}
+        GITHUB_SELF_TEST_REPO: ${{ github.repository }}
+        GITHUB_SELF_TEST_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: Submit to CodeCov
       uses: codecov/codecov-action@v1
       with:
