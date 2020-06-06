@@ -2,8 +2,6 @@ import * as path from 'path';
 
 import * as util from '../util';
 
-const DATA_DIR = path.join(util.DATA_DIR, 'ssh-no-branch-github');
-
 const KNOWN_HOSTS_WARNING = `
 ##[warning] KNOWN_HOSTS_FILE not set
 This will probably mean that host verification will fail later on
@@ -16,15 +14,20 @@ or the file is invalid or doesn't correctly verify the host git-ssh
 `;
 
 describe('Misconfigurations', () => {
-  it('Missing KNOWN_HOSTS_FILE', async () => {
+  it('missing-known-hosts', async () => {
+
+    const testname = `misconfiguration-missing-known-hosts`;
+    const dataDir = path.join(util.DATA_DIR, testname);
+
+    await util.mkdir(dataDir);
 
     // Run Action
     await util.runWithGithubEnv(
-      path.basename(__filename),
+      testname,
       {
         REPO: 'ssh://git@git-ssh/git-server/repos/ssh-existing-branch.git',
         BRANCH: 'branch-a',
-        FOLDER: DATA_DIR,
+        FOLDER: dataDir,
         SSH_PRIVATE_KEY: (await util.readFile(util.SSH_PRIVATE_KEY)).toString(),
       },
       's0/test',
@@ -41,7 +44,7 @@ describe('Misconfigurations', () => {
         expect(err.output?.stderr.includes(KNOWN_HOSTS_WARNING)).toBeTruthy();
         expect(err.output?.stderr.includes(KNOWN_HOSTS_ERROR)).toBeTruthy();
       } catch (e) {
-        console.log(err.output?.stderr);
+        console.log(err);
         throw e;
       }
     });
