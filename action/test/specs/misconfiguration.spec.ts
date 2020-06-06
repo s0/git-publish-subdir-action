@@ -25,7 +25,7 @@ describe('Misconfigurations', () => {
     await util.runWithGithubEnv(
       testname,
       {
-        REPO: 'ssh://git@git-ssh/git-server/repos/ssh-existing-branch.git',
+        REPO: 'ssh://git@git-ssh/git-server/repos/non-existing.git',
         BRANCH: 'branch-a',
         FOLDER: dataDir,
         SSH_PRIVATE_KEY: (await util.readFile(util.SSH_PRIVATE_KEY)).toString(),

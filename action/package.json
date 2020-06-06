@@ -3,7 +3,7 @@
   "scripts": {
     "build": "tsc && ncc build lib/src",
     "start": "node lib",
-    "test": "jest --projects test/jest.config.js --runInBand",
+    "test": "jest --projects test/jest.config.js --runInBand --verbose",
     "test-run": "nyc ts-node --transpile-only src"
   },
   "devDependencies": {

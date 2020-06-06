@@ -138,8 +138,12 @@ export const runWithGithubEnv = async (
   const file = path.join(DATA_DIR, `event-${new Date().getTime()}.json`);
   await writeFile(file, JSON.stringify(event));
 
-  const processCoverage = () =>
-    exec(`docker exec -u test test-node npx nyc merge ./.nyc_output/${reportName} ./.nyc_output/${reportName}.json`);
+  const postRun = async () => {
+    // Process Coverage
+    await exec(`docker exec -u test test-node npx nyc merge ./.nyc_output/${reportName} ./.nyc_output/${reportName}.json`);
+    // Remove Run-Related Files
+    await exec(`docker exec -u test test-node ./test/bin/post-run-clean.sh`);
+  }
 
   return await runWithEnv(
     reportName,
@@ -151,10 +155,10 @@ export const runWithGithubEnv = async (
     },
     opts,
   ).then(async result => {
-    await processCoverage();
+    await postRun();
     return result;
   }).catch(async err => {
-    await processCoverage();
+    await postRun();
     throw err;
   });
 }
