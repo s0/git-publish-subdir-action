@@ -50,4 +50,99 @@ describe('Misconfigurations', () => {
     });
 
   });
+
+  it('missing-repo', async () => {
+
+    const testname = `misconfiguration-missing-repo`;
+    const dataDir = path.join(util.DATA_DIR, testname);
+
+    // Run Action
+    await util.runWithGithubEnv(
+      testname,
+      {
+        BRANCH: 'branch-a',
+        FOLDER: dataDir,
+      },
+      's0/test',
+      {},
+      's0',
+      {
+        captureOutput: true,
+      }
+    ).then(() => {
+      throw new Error('Expected error');
+    }).catch((err: util.TestRunError) => {
+      try {
+        expect(err.output).toBeDefined();
+        expect(err.output?.stderr.includes('REPO must be specified')).toBeTruthy();
+      } catch (e) {
+        console.log(err);
+        throw e;
+      }
+    });
+
+  });
+
+  it('missing-folder', async () => {
+
+    const testname = `misconfiguration-missing-folder`;
+
+    // Run Action
+    await util.runWithGithubEnv(
+      testname,
+      {
+        REPO: 'ssh://git@git-ssh/git-server/repos/non-existing.git',
+        BRANCH: 'branch-a',
+      },
+      's0/test',
+      {},
+      's0',
+      {
+        captureOutput: true,
+      }
+    ).then(() => {
+      throw new Error('Expected error');
+    }).catch((err: util.TestRunError) => {
+      try {
+        expect(err.output).toBeDefined();
+        expect(err.output?.stderr.includes('FOLDER must be specified')).toBeTruthy();
+      } catch (e) {
+        console.log(err);
+        throw e;
+      }
+    });
+
+  });
+
+  it('missing-branch', async () => {
+
+    const testname = `misconfiguration-missing-branch`;
+    const dataDir = path.join(util.DATA_DIR, testname);
+
+    // Run Action
+    await util.runWithGithubEnv(
+      testname,
+      {
+        REPO: 'ssh://git@git-ssh/git-server/repos/non-existing.git',
+        FOLDER: dataDir,
+      },
+      's0/test',
+      {},
+      's0',
+      {
+        captureOutput: true,
+      }
+    ).then(() => {
+      throw new Error('Expected error');
+    }).catch((err: util.TestRunError) => {
+      try {
+        expect(err.output).toBeDefined();
+        expect(err.output?.stderr.includes('BRANCH must be specified')).toBeTruthy();
+      } catch (e) {
+        console.log(err);
+        throw e;
+      }
+    });
+
+  });
 });
