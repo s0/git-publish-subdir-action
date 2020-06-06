@@ -48,7 +48,21 @@ export const execWithOutput = async (
 
 interface RunOptions {
   debug?: boolean;
+  captureOutput?: boolean;
 };
+
+interface TestRunOutput {
+  stdout: string;
+  stderr: string;
+}
+
+export class TestRunError extends Error {
+  public readonly output?: TestRunOutput;
+  public constructor(message: string, output?: TestRunOutput) {
+    super(message);
+    this.output = output;
+  }
+}
 
 export const runWithEnv = async (
   reportName: string,
@@ -85,17 +99,31 @@ export const runWithEnv = async (
         ...process.env,
         ...env
       },
-      stdio: 'inherit',
+      stdio: opts?.captureOutput ? 'pipe' : 'inherit',
     },
   );
 
-  return new Promise<void>((resolve, reject) => ps.on('close', code => {
-    if (code !== 0) {
-      reject(new Error('Process exited with code: ' + code));
-    } else {
-      resolve();
+  let output: TestRunOutput | undefined = undefined;
+  if (opts?.captureOutput) {
+    const o = output = {
+      stderr: '',
+      stdout: ''
+    };
+
+    for (const stream of ['stdout', 'stderr'] as const) {
+      ps[stream]?.on('data', data => {
+        o[stream] += data;
+      });
     }
-  }))
+  }
+
+  return new Promise<TestRunOutput | undefined>((resolve, reject) => ps.on('close', code => {
+    if (code !== 0) {
+      reject(new TestRunError('Process exited with code: ' + code, output));
+    } else {
+      resolve(output);
+    }
+  }));
 }
 
 export const runWithGithubEnv = async (
@@ -110,7 +138,7 @@ export const runWithGithubEnv = async (
   const file = path.join(DATA_DIR, `event-${new Date().getTime()}.json`);
   await writeFile(file, JSON.stringify(event));
 
-  await runWithEnv(
+  const result = await runWithEnv(
     reportName,
     {
       ...env,
@@ -123,6 +151,8 @@ export const runWithGithubEnv = async (
 
   // Merge report
   await exec(`docker exec -u test test-node npx nyc merge ./.nyc_output/${reportName} ./.nyc_output/${reportName}.json`);
+
+  return result;
 }
 
 /**
