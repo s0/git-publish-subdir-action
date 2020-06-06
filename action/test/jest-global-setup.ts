@@ -22,6 +22,10 @@ export = async () => {
     'ssh-keygen -t ed25519 -N "" -f ./id',
     { cwd: util.DATA_DIR }
   );
+  await util.exec(
+    'ssh-keygen -t ed25519 -N "" -f ./id2',
+    { cwd: util.DATA_DIR }
+  );
   await copyFile(
     path.join(util.DATA_DIR, 'id.pub'),
     path.join(util.DATA_DIR, 'server-ssh-keys', 'id.pub'),

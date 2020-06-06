@@ -13,6 +13,12 @@ This is probably because you forgot to supply a value for KNOWN_HOSTS_FILE
 or the file is invalid or doesn't correctly verify the host git-ssh
 `;
 
+const SSH_KEY_ERROR = `
+##[error] Permission denied (publickey)
+Make sure that the ssh private key is set correctly, and
+that the public key has been added to the target repo
+`;
+
 describe('Misconfigurations', () => {
   it('missing-known-hosts', async () => {
 
@@ -239,6 +245,42 @@ describe('Misconfigurations', () => {
       try {
         expect(err.output).toBeDefined();
         expect(err.output?.stderr.includes('Unsupported REPO URL')).toBeTruthy();
+      } catch (e) {
+        console.log(err);
+        throw e;
+      }
+    });
+
+  });
+  it('unauthorized-ssh-key', async () => {
+
+    const testname = `unauthorized-ssh-key`;
+    const dataDir = path.join(util.DATA_DIR, testname);
+
+    await util.mkdir(dataDir);
+
+    // Run Action
+    await util.runWithGithubEnv(
+      testname,
+      {
+        REPO: 'ssh://git@git-ssh/git-server/repos/ssh-no-branch.git',
+        BRANCH: 'branch-a',
+        FOLDER: dataDir,
+        SSH_PRIVATE_KEY: (await util.readFile(util.SSH_PRIVATE_KEY_INVALID)).toString(),
+        KNOWN_HOSTS_FILE: util.KNOWN_HOSTS,
+      },
+      's0/test',
+      {},
+      's0',
+      {
+        captureOutput: true,
+      }
+    ).then(() => {
+      throw new Error('Expected error');
+    }).catch((err: util.TestRunError) => {
+      try {
+        expect(err.output).toBeDefined();
+        expect(err.output?.stderr.includes(SSH_KEY_ERROR)).toBeTruthy();
       } catch (e) {
         console.log(err);
         throw e;

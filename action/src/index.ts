@@ -262,7 +262,7 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
     if (config.mode === 'ssh') {
       if (s.indexOf("Host key verification failed") !== -1) {
         console.error(KNOWN_HOSTS_ERROR(config.parsedUrl.resource));
-      } else if (s.indexOf("Permission denied (publickey)") !== -1) {
+      } else if (s.indexOf("Permission denied (publickey") !== -1) {
         console.error(SSH_KEY_ERROR);
       }
     }

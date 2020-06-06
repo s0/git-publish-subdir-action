@@ -17,6 +17,7 @@ export const TEST_DIR = __dirname;
 export const DATA_DIR = path.join(TEST_DIR, 'data');
 export const REPOS_DIR = path.join(DATA_DIR, 'repos');
 export const SSH_PRIVATE_KEY = path.join(DATA_DIR, 'id');
+export const SSH_PRIVATE_KEY_INVALID = path.join(DATA_DIR, 'id2');
 export const KNOWN_HOSTS = path.join(DATA_DIR, 'known_hosts');
 
 export const DOCKER_IMAGE_TEST_DIR = '/home/node/repo/action/test'
