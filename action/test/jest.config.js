@@ -7,4 +7,7 @@ module.exports = {
   testMatch: [
     '<rootDir>/test/**/*.spec.ts',
   ],
+  setupFilesAfterEnv: [
+    '<rootDir>/test/jest-global-setup-hooks.ts'
+  ],
 };

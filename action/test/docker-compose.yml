@@ -6,12 +6,16 @@ services:
     working_dir: /home/node/repo/action
     volumes:
       - ../../:/home/node/repo
-    command: "./test/wait.js"
+    command: "./test/bin/port-forward.js"
     container_name: test-node
     networks:
       test:
         aliases:
           - node
+    expose:
+      - "9230"
+    ports:
+      - "127.0.0.1:9229:9230"
   test-git-ssh:
     image: git-ssh-server
     volumes:

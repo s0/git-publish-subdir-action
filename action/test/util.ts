@@ -1,9 +1,12 @@
+import dotenv from 'dotenv';
 import * as child_process from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
 import { promisify } from 'util';
 
 import { EnvironmentVariables, Event } from '../src';
+
+dotenv.config();
 
 export const exec = promisify(child_process.exec);
 export const mkdir = promisify(fs.mkdir);
@@ -14,11 +17,19 @@ export const TEST_DIR = __dirname;
 export const DATA_DIR = path.join(TEST_DIR, 'data');
 export const REPOS_DIR = path.join(DATA_DIR, 'repos');
 export const SSH_PRIVATE_KEY = path.join(DATA_DIR, 'id');
+export const SSH_PRIVATE_KEY_INVALID = path.join(DATA_DIR, 'id2');
 export const KNOWN_HOSTS = path.join(DATA_DIR, 'known_hosts');
 
 export const DOCKER_IMAGE_TEST_DIR = '/home/node/repo/action/test'
 
 export const NODE_CONTAINER = 'test-node';
+
+export const getGitHubSSHPrivateKey = () => {
+  const key = process.env.GITHUB_SSH_PRIVATE_KEY;
+  if (!key)
+    throw new Error('Environment variable GITHUB_SSH_PRIVATE_KEY not set, needed for tests');
+  return key;
+}
 
 export const execWithOutput = async (
   command: string,
@@ -36,7 +47,29 @@ export const execWithOutput = async (
   return result;
 }
 
-export const runWithEnv = async (reportName: string, env: EnvironmentVariables) => {
+interface RunOptions {
+  debug?: boolean;
+  captureOutput?: boolean;
+};
+
+interface TestRunOutput {
+  stdout: string;
+  stderr: string;
+}
+
+export class TestRunError extends Error {
+  public readonly output?: TestRunOutput;
+  public constructor(message: string, output?: TestRunOutput) {
+    super(message);
+    this.output = output;
+  }
+}
+
+export const runWithEnv = async (
+  reportName: string,
+  env: EnvironmentVariables,
+  opts?: RunOptions,
+) => {
 
   const envVars: string[] = [];
 
@@ -51,50 +84,88 @@ export const runWithEnv = async (reportName: string, env: EnvironmentVariables) 
     }
   }
 
+  const nodeCmd = [
+    'node',
+    ... (opts?.debug ? ['--inspect-brk'] : []),
+    '-r',
+    'ts-node/register/transpile-only',
+    'src'
+  ];
+
   const ps = child_process.spawn(
     'docker',
-    ['exec', ...envVars, '-u', 'test', 'test-node', 'npx', 'nyc', '--temp-dir', `./.nyc_output/${reportName}`, '--reporter=none', 'ts-node', '--transpile-only', 'src'],
+    ['exec', ...envVars, '-u', 'test', 'test-node', 'npx', 'nyc', '--temp-dir', `./.nyc_output/${reportName}`, '--reporter=none', ...nodeCmd],
     {
       env: {
         ...process.env,
         ...env
       },
-      stdio: 'inherit',
+      stdio: opts?.captureOutput ? 'pipe' : 'inherit',
     },
   );
 
-  return new Promise<void>((resolve, reject) => ps.on('close', code => {
-    if (code !== 0) {
-      reject(new Error('Process exited with code: ' + code));
-    } else {
-      resolve();
+  let output: TestRunOutput | undefined = undefined;
+  if (opts?.captureOutput) {
+    const o = output = {
+      stderr: '',
+      stdout: ''
+    };
+
+    for (const stream of ['stdout', 'stderr'] as const) {
+      ps[stream]?.on('data', data => {
+        o[stream] += data;
+      });
     }
-  }))
+  }
+
+  return new Promise<TestRunOutput | undefined>((resolve, reject) => ps.on('close', code => {
+    if (code !== 0) {
+      reject(new TestRunError('Process exited with code: ' + code, output));
+    } else {
+      resolve(output);
+    }
+  }));
+}
+
+interface ExtendedRunOptions extends RunOptions {
+  excludeEventPath?: true;
 }
 
 export const runWithGithubEnv = async (
   reportName: string,
   env: EnvironmentVariables,
-  repo: string,
-  event: Event,
-  actor: string,
+  repo: string | undefined,
+  event?: Event,
+  actor?: string,
+  opts?: ExtendedRunOptions,
 ) => {
   // create event file
   const file = path.join(DATA_DIR, `event-${new Date().getTime()}.json`);
-  await writeFile(file, JSON.stringify(event));
+  await writeFile(file, JSON.stringify(event || {}));
 
-  await runWithEnv(
+  const postRun = async () => {
+    // Process Coverage
+    await exec(`docker exec -u test test-node npx nyc merge ./.nyc_output/${reportName} ./.nyc_output/${reportName}.json`);
+    // Remove Run-Related Files
+    await exec(`docker exec -u test test-node ./test/bin/post-run-clean.sh`);
+  }
+
+  return await runWithEnv(
     reportName,
     {
       ...env,
-      GITHUB_ACTOR: actor,
-      GITHUB_REPOSITORY: repo,
-      GITHUB_EVENT_PATH: file,
+      ...(actor ? { GITHUB_ACTOR: actor } : {}),
+      ...(repo ? { GITHUB_REPOSITORY: repo } : {}),
+      ...(opts?.excludeEventPath ? {} : { GITHUB_EVENT_PATH: file }),
     },
-  );
-
-  // Merge report
-  await exec(`docker exec -u test test-node npx nyc merge ./.nyc_output/${reportName} ./.nyc_output/${reportName}.json`);
+    opts,
+  ).then(async result => {
+    await postRun();
+    return result;
+  }).catch(async err => {
+    await postRun();
+    throw err;
+  });
 }
 
 /**

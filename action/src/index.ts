@@ -177,6 +177,7 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
   child.on('error', reject);
   let stderr = '';
   child.stdout.on('data', (data) => {
+    /* istanbul ignore next */
     console.log(data.toString());
   });
   child.stderr.on('data', (data) => {
@@ -184,6 +185,7 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
     console.error(data.toString());
   });
   child.on('close', (code) => {
+    /* istanbul ignore else */
     if (code === 0) {
       resolve();
     } else {
@@ -205,8 +207,8 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
 
   const event: Event = JSON.parse((await readFile(ENV.GITHUB_EVENT_PATH)).toString());
 
-  const name = event.pusher && event.pusher.name || ENV.GITHUB_ACTOR || 'Git Publish Subdirectory';
-  const email = event.pusher && event.pusher.email || (ENV.GITHUB_ACTOR ? `${ENV.GITHUB_ACTOR}@users.noreply.github.com` : 'nobody@nowhere');
+  const name = event.pusher?.name || ENV.GITHUB_ACTOR || 'Git Publish Subdirectory';
+  const email = event.pusher?.email || (ENV.GITHUB_ACTOR ? `${ENV.GITHUB_ACTOR}@users.noreply.github.com` : 'nobody@nowhere');
 
   // Set Git Config
   await exec(`git config --global user.name "${name}"`);
@@ -237,6 +239,7 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
     // Setup ssh-agent with private key
     console.log(`Setting up ssh-agent on ${SSH_AUTH_SOCK}`);
     const sshAgentMatch = SSH_AGENT_PID_EXTRACT.exec((await exec(`ssh-agent -a ${SSH_AUTH_SOCK}`, {env})).stdout);
+    /* istanbul ignore if */
     if (!sshAgentMatch)
       throw new Error('Unexpected output from ssh-agent');
     env.SSH_AGENT_PID = sshAgentMatch[1];
@@ -244,12 +247,6 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
     await writeToProcess('ssh-add', ['-'], {
       data: config.privateKey + '\n',
       env
-    }).catch(err => {
-      const s = err.toString();
-      if (s.indexOf("invalid format") !== -1) {
-        console.error(INVALID_KEY_ERROR);
-      }
-      throw err;
     });
     console.log(`Private key added`);
   }
@@ -259,10 +256,12 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
     env
   }).catch(err => {
     const s = err.toString();
+    /* istanbul ignore else */
     if (config.mode === 'ssh') {
+      /* istanbul ignore else */
       if (s.indexOf("Host key verification failed") !== -1) {
         console.error(KNOWN_HOSTS_ERROR(config.parsedUrl.resource));
-      } else if (s.indexOf("Permission denied (publickey)") !== -1) {
+      } else if (s.indexOf("Permission denied (publickey") !== -1) {
         console.error(SSH_KEY_ERROR);
       }
     }
@@ -272,6 +271,7 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
   // Fetch branch if it exists
   await exec(`git fetch -u origin ${config.branch}:${config.branch}`, { env, cwd: REPO_TEMP }).catch(err => {
     const s = err.toString();
+    /* istanbul ignore if */
     if (s.indexOf('Couldn\'t find remote ref') === -1) {
       console.error('##[warning] Failed to fetch target branch, probably doesn\'t exist')
       console.error(err);
