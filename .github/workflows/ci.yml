@@ -144,6 +144,8 @@ jobs:
       run: |
         cd action
         npm run test
+      env:
+        GITHUB_SSH_PRIVATE_KEY: ${{ secrets.TESTING_PRIVATE_KEY }}
     - name: Submit to CodeCov
       uses: codecov/codecov-action@v1
       with:
