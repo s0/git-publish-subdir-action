@@ -135,13 +135,13 @@ export const runWithGithubEnv = async (
   reportName: string,
   env: EnvironmentVariables,
   repo: string | undefined,
-  event: Event,
-  actor: string,
+  event?: Event,
+  actor?: string,
   opts?: ExtendedRunOptions,
 ) => {
   // create event file
   const file = path.join(DATA_DIR, `event-${new Date().getTime()}.json`);
-  await writeFile(file, JSON.stringify(event));
+  await writeFile(file, JSON.stringify(event || {}));
 
   const postRun = async () => {
     // Process Coverage
@@ -154,7 +154,7 @@ export const runWithGithubEnv = async (
     reportName,
     {
       ...env,
-      GITHUB_ACTOR: actor,
+      ...(actor ? { GITHUB_ACTOR: actor } : {}),
       ...(repo ? { GITHUB_REPOSITORY: repo } : {}),
       ...(opts?.excludeEventPath ? {} : { GITHUB_EVENT_PATH: file }),
     },

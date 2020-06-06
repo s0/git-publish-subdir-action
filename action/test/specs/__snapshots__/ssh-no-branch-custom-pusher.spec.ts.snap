@@ -1,0 +1,28 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Custom Pusher (invalid) 1`] = `
+"msg:Update branch-a to output generated at <sha>
+tree:8bf87c66655949e66937b11593cc4ae732d1f610
+author:s0 <s0@users.noreply.github.com>
+msg:Initial branch-a commit
+tree:f93e3a1a1525fb5b91020da86e44810c87a2d7bc
+author:s0 <s0@users.noreply.github.com>"
+`;
+
+exports[`Custom Pusher 1`] = `
+"msg:Update branch-a to output generated at <sha>
+tree:8bf87c66655949e66937b11593cc4ae732d1f610
+author:Alice Bob <bob@examle.com>
+msg:Initial branch-a commit
+tree:f93e3a1a1525fb5b91020da86e44810c87a2d7bc
+author:Alice Bob <bob@examle.com>"
+`;
+
+exports[`No Pusher or Actor 1`] = `
+"msg:Update branch-a to output generated at <sha>
+tree:8bf87c66655949e66937b11593cc4ae732d1f610
+author:Git Publish Subdirectory <nobody@nowhere>
+msg:Initial branch-a commit
+tree:f93e3a1a1525fb5b91020da86e44810c87a2d7bc
+author:Git Publish Subdirectory <nobody@nowhere>"
+`;

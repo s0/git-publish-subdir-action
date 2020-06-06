@@ -185,10 +185,10 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
     console.error(data.toString());
   });
   child.on('close', (code) => {
+    /* istanbul ignore else */
     if (code === 0) {
       resolve();
     } else {
-      /* istanbul ignore next */
       reject(new Error(stderr));
     }
   });
@@ -207,8 +207,8 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
 
   const event: Event = JSON.parse((await readFile(ENV.GITHUB_EVENT_PATH)).toString());
 
-  const name = event.pusher && event.pusher.name || ENV.GITHUB_ACTOR || 'Git Publish Subdirectory';
-  const email = event.pusher && event.pusher.email || (ENV.GITHUB_ACTOR ? `${ENV.GITHUB_ACTOR}@users.noreply.github.com` : 'nobody@nowhere');
+  const name = event.pusher?.name || ENV.GITHUB_ACTOR || 'Git Publish Subdirectory';
+  const email = event.pusher?.email || (ENV.GITHUB_ACTOR ? `${ENV.GITHUB_ACTOR}@users.noreply.github.com` : 'nobody@nowhere');
 
   // Set Git Config
   await exec(`git config --global user.name "${name}"`);
@@ -256,7 +256,9 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
     env
   }).catch(err => {
     const s = err.toString();
+    /* istanbul ignore else */
     if (config.mode === 'ssh') {
+      /* istanbul ignore else */
       if (s.indexOf("Host key verification failed") !== -1) {
         console.error(KNOWN_HOSTS_ERROR(config.parsedUrl.resource));
       } else if (s.indexOf("Permission denied (publickey") !== -1) {
