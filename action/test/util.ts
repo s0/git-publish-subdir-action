@@ -134,7 +134,7 @@ interface ExtendedRunOptions extends RunOptions {
 export const runWithGithubEnv = async (
   reportName: string,
   env: EnvironmentVariables,
-  repo: string,
+  repo: string | undefined,
   event: Event,
   actor: string,
   opts?: ExtendedRunOptions,
@@ -155,7 +155,7 @@ export const runWithGithubEnv = async (
     {
       ...env,
       GITHUB_ACTOR: actor,
-      GITHUB_REPOSITORY: repo,
+      ...(repo ? { GITHUB_REPOSITORY: repo } : {}),
       ...(opts?.excludeEventPath ? {} : { GITHUB_EVENT_PATH: file }),
     },
     opts,

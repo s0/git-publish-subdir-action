@@ -288,4 +288,74 @@ describe('Misconfigurations', () => {
     });
 
   });
+  it('self-missing-token', async () => {
+
+    const testname = `uself-missing-token`;
+    const dataDir = path.join(util.DATA_DIR, testname);
+
+    await util.mkdir(dataDir);
+
+    // Run Action
+    await util.runWithGithubEnv(
+      testname,
+      {
+        REPO: 'self',
+        BRANCH: 'tmp-test-branch',
+        FOLDER: dataDir,
+      },
+      's0/test',
+      {},
+      's0',
+      {
+        captureOutput: true,
+      }
+    ).then(() => {
+      throw new Error('Expected error');
+    }).catch((err: util.TestRunError) => {
+      try {
+        expect(err.output).toBeDefined();
+        expect(err.output?.stderr.includes('GITHUB_TOKEN must be specified when REPO == self')).toBeTruthy();
+      } catch (e) {
+        console.log(err);
+        throw e;
+      }
+    });
+
+  });
+
+  it('self-missing-repo', async () => {
+
+    const testname = `uself-missing-repo`;
+    const dataDir = path.join(util.DATA_DIR, testname);
+
+    await util.mkdir(dataDir);
+
+    // Run Action
+    await util.runWithGithubEnv(
+      testname,
+      {
+        REPO: 'self',
+        BRANCH: 'tmp-test-branch',
+        FOLDER: dataDir,
+        GITHUB_TOKEN: 'foobar',
+      },
+      undefined,
+      {},
+      's0',
+      {
+        captureOutput: true,
+      }
+    ).then(() => {
+      throw new Error('Expected error');
+    }).catch((err: util.TestRunError) => {
+      try {
+        expect(err.output).toBeDefined();
+        expect(err.output?.stderr.includes('GITHUB_REPOSITORY must be specified when REPO == self')).toBeTruthy();
+      } catch (e) {
+        console.log(err);
+        throw e;
+      }
+    });
+
+  });
 });
