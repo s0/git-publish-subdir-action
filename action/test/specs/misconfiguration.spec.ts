@@ -36,9 +36,14 @@ describe('Misconfigurations', () => {
     ).then(() => {
       throw new Error('Expected error');
     }).catch((err: util.TestRunError) => {
-      expect(err.output).toBeDefined();
-      expect(err.output?.stderr.includes(KNOWN_HOSTS_WARNING)).toBeTruthy();
-      expect(err.output?.stderr.includes(KNOWN_HOSTS_ERROR)).toBeTruthy();
+      try {
+        expect(err.output).toBeDefined();
+        expect(err.output?.stderr.includes(KNOWN_HOSTS_WARNING)).toBeTruthy();
+        expect(err.output?.stderr.includes(KNOWN_HOSTS_ERROR)).toBeTruthy();
+      } catch (e) {
+        console.log(err.output?.stderr);
+        throw e;
+      }
     });
 
   });
