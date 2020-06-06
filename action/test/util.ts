@@ -126,13 +126,17 @@ export const runWithEnv = async (
   }));
 }
 
+interface ExtendedRunOptions extends RunOptions {
+  excludeEventPath?: true;
+}
+
 export const runWithGithubEnv = async (
   reportName: string,
   env: EnvironmentVariables,
   repo: string,
   event: Event,
   actor: string,
-  opts?: RunOptions,
+  opts?: ExtendedRunOptions,
 ) => {
   // create event file
   const file = path.join(DATA_DIR, `event-${new Date().getTime()}.json`);
@@ -151,7 +155,7 @@ export const runWithGithubEnv = async (
       ...env,
       GITHUB_ACTOR: actor,
       GITHUB_REPOSITORY: repo,
-      GITHUB_EVENT_PATH: file,
+      ...(opts?.excludeEventPath ? {} : { GITHUB_EVENT_PATH: file }),
     },
     opts,
   ).then(async result => {

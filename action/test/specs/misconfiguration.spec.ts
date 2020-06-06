@@ -145,4 +145,72 @@ describe('Misconfigurations', () => {
     });
 
   });
+
+  it('missing-event-path', async () => {
+
+    const testname = `misconfiguration-missing-event-path`;
+    const dataDir = path.join(util.DATA_DIR, testname);
+
+    // Run Action
+    await util.runWithGithubEnv(
+      testname,
+      {
+        REPO: 'ssh://git@git-ssh/git-server/repos/non-existing.git',
+        BRANCH: 'branch-a',
+        FOLDER: dataDir,
+        SSH_PRIVATE_KEY: (await util.readFile(util.SSH_PRIVATE_KEY)).toString(),
+      },
+      's0/test',
+      {},
+      's0',
+      {
+        captureOutput: true,
+        excludeEventPath: true,
+      }
+    ).then(() => {
+      throw new Error('Expected error');
+    }).catch((err: util.TestRunError) => {
+      try {
+        expect(err.output).toBeDefined();
+        expect(err.output?.stderr.includes('Expected GITHUB_EVENT_PATH')).toBeTruthy();
+      } catch (e) {
+        console.log(err);
+        throw e;
+      }
+    });
+
+  });
+
+  it('missing-ssh-private-key', async () => {
+
+    const testname = `misconfiguration-missing-ssh-private-key`;
+    const dataDir = path.join(util.DATA_DIR, testname);
+
+    // Run Action
+    await util.runWithGithubEnv(
+      testname,
+      {
+        REPO: 'ssh://git@git-ssh/git-server/repos/non-existing.git',
+        BRANCH: 'branch-a',
+        FOLDER: dataDir,
+      },
+      's0/test',
+      {},
+      's0',
+      {
+        captureOutput: true,
+      }
+    ).then(() => {
+      throw new Error('Expected error');
+    }).catch((err: util.TestRunError) => {
+      try {
+        expect(err.output).toBeDefined();
+        expect(err.output?.stderr.includes('SSH_PRIVATE_KEY must be specified when REPO uses ssh')).toBeTruthy();
+      } catch (e) {
+        console.log(err);
+        throw e;
+      }
+    });
+
+  });
 });
