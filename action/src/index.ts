@@ -303,7 +303,7 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
   // Update contents of branch
   console.log(`##[info] Updating branch ${config.branch}`);
   await exec(`git checkout "${config.branch}"`, { env, cwd: REPO_TEMP });
-  if (config.squashHistory === true) {
+  if (config.squashHistory) {
     await exec(`git reset --HARD $(git rev-list --max-parents=0 --abbrev-commit HEAD)`, { env, cwd: REPO_TEMP });
   }
   await exec(`git rm -rf .`, { env, cwd: REPO_TEMP }).catch(err => { });
@@ -314,8 +314,8 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
   await exec(`git add -A .`, { env, cwd: REPO_TEMP });
   await exec(`git commit --allow-empty -m "Update ${config.branch} to output generated at ${sha}"`, { env, cwd: REPO_TEMP });
   console.log(`##[info] Pushing`);
-  const forceArg = config.squashHistory ? '--force' : '';
-  const push = await exec(`git push "${forceArg}" origin "${config.branch}"`, { env, cwd: REPO_TEMP });
+  const forceArg = config.squashHistory ? '-f' : '';
+  const push = await exec(`git push ${forceArg} origin "${config.branch}"`, { env, cwd: REPO_TEMP });
   console.log(push.stdout);
   console.log(`##[info] Deployment Successful`);
 
