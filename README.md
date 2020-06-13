@@ -14,7 +14,7 @@ If the target branch doesn't exist yet, it will be created automatically.
 
 ## Usage
 
-Simply include the action `s0/git-publish-subdir-action@master` in the appropriate point in your workflow, and pass in the required configuration options:
+Simply include the action `s0/git-publish-subdir-action@develop` in the appropriate point in your workflow, and pass in the required configuration options:
 
 ```yml
 jobs:
@@ -27,7 +27,7 @@ jobs:
 
     # Deploy to local repo
     - name: Deploy
-      uses: s0/git-publish-subdir-action@master
+      uses: s0/git-publish-subdir-action@develop
       env:
         REPO: self
         BRANCH: gh-pages
@@ -36,7 +36,7 @@ jobs:
 
     # Deploy to another repo
     - name: Deploy
-      uses: s0/git-publish-subdir-action@master
+      uses: s0/git-publish-subdir-action@develop
       env:
         REPO: git@github.com:owner/repo.git
         BRANCH: gh-pages
@@ -64,7 +64,7 @@ jobs:
     - uses: actions/checkout@master
 
     - name: Deploy
-      uses: s0/git-publish-subdir-action@master
+      uses: s0/git-publish-subdir-action@develop
       env:
         REPO: self
         BRANCH: gh-pages
@@ -97,7 +97,7 @@ jobs:
         npm run build
 
     - name: Deploy
-      uses: s0/git-publish-subdir-action@master
+      uses: s0/git-publish-subdir-action@develop
       env:
         REPO: git@github.com:owner/repo.git
         BRANCH: gh-pages
@@ -134,7 +134,7 @@ jobs:
         npm run build
 
     - name: Deploy
-      uses: s0/git-publish-subdir-action@master
+      uses: s0/git-publish-subdir-action@develop
       env:
         REPO: git@mydomain.com:path/to/repo.git
         BRANCH: artifacts
