@@ -1,0 +1,7 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Deploy to a new branch over ssh, and squash commits 1`] = `
+"msg:Update branch-a to output generated at <sha>
+tree:8bf87c66655949e66937b11593cc4ae732d1f610
+author:s0 <s0@users.noreply.github.com>"
+`;
