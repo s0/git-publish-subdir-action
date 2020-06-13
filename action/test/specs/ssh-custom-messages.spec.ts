@@ -32,6 +32,22 @@ it('Test custom message templates', async () => {
     {},
     's0',
   );
+  // Run the action again to make sure that a commit is added even when there are
+  // no content changes
+  await util.runWithGithubEnv(
+    path.basename(__filename),
+    {
+      REPO: 'ssh://git@git-ssh/git-server/repos/ssh-custom-messages.git',
+      BRANCH: 'branch-a',
+      FOLDER: DATA_DIR,
+      SSH_PRIVATE_KEY: (await util.readFile(util.SSH_PRIVATE_KEY)).toString(),
+      KNOWN_HOSTS_FILE: util.KNOWN_HOSTS,
+      MESSAGE: 'This is another commit follow up with no content changes',
+    },
+    's0/test',
+    {},
+    's0',
+  );
 
   // Check that the log of the repo is as expected
   // (check tree-hash, commit message, and author)
