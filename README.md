@@ -167,6 +167,32 @@ All configuration options are passed in via `env`, as environment variables.
 | `KNOWN_HOSTS_FILE` | Path to a file in the repository that contains the known SSH fingerprints for the target host. | When the target host is not github.com |
 | `GITHUB_TOKEN`     | Should always be equal to `${{ secrets.GITHUB_TOKEN }}` | When `REPO = self` |
 | `SQUASH_HISTORY`   | If set to `true`, all previous commits on the target branch will be discarded. For example, if you are deploying a static site with lots of binary artifacts, this can help the repository becoming overly bloated. | No |
+| `MESSAGE`          | A custom template to use as the commit message pushed to the target branch. See [custom commit messages](#custom-commit-messages). | No |
+
+## Custom commit messages
+
+You can specify a custom string to use in the commit message
+when pushing to your target repository.
+These strings support a number of placeholders that will be replaces with
+relevant values:
+
+| Placeholder        | Description                                           |
+| ------------------ | ----------------------------------------------------- |
+| `{target-branch}`  | The name of the target branch being updated           | 
+| `{sha}`            | The 7-character sha of the HEAD of the current branch | 
+| `{long-sha}`       | The full sha of the HEAD of the current branch        | 
+| `{msg}`            | The commit message for the HEAD of the current branch | 
+
+Example Usage:
+
+```yml
+jobs:
+  deploy:
+    - uses: s0/git-publish-subdir-action@develop
+      env:
+        # ...
+        MESSAGE: "This updates the content to the commit {sha} that had the message:\n{msg}"
+```
 
 ## Usage with [Deploy Keys](https://developer.github.com/v3/guides/managing-deploy-keys/#deploy-keys)
 
