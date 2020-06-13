@@ -35,6 +35,7 @@ it('Test custom message templates', async () => {
 
   // Check that the log of the repo is as expected
   // (check tree-hash, commit message, and author)
+  // TODO: test {msg} placeholder and multiple commits with no content changes
   let log = (await util.exec(
     'git log --pretty="format:msg:%B%ntree:%T%nauthor:%an <%ae>" branch-a',
     {
