@@ -7,7 +7,7 @@ const WORK_DIR = path.join(util.DATA_DIR, 'ssh-existing-branch-squash');
 const REPO_CLONE_DIR = path.join(WORK_DIR, 'clone');
 const DATA_DIR = path.join(WORK_DIR, 'data');
 
-it('Check that commits are squashed', async () => {
+it('Deploy to a existing branch over ssh, and squash commits', async () => {
 
   // Create empty repo
   await util.mkdir(REPO_DIR);
