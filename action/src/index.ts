@@ -276,36 +276,45 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
     throw err;
   });
 
-  // Fetch branch if it exists
-  await exec(`git fetch -u origin ${config.branch}:${config.branch}`, { env, cwd: REPO_TEMP }).catch(err => {
-    const s = err.toString();
-    /* istanbul ignore if */
-    if (s.indexOf('Couldn\'t find remote ref') === -1) {
-      console.error('##[warning] Failed to fetch target branch, probably doesn\'t exist')
-      console.error(err);
-    }
-  });
+  if (!config.squashHistory) {
+    // Fetch branch if it exists
+    await exec(`git fetch -u origin ${config.branch}:${config.branch}`, { env, cwd: REPO_TEMP }).catch(err => {
+      const s = err.toString();
+      /* istanbul ignore if */
+      if (s.indexOf('Couldn\'t find remote ref') === -1) {
+        console.error('##[warning] Failed to fetch target branch, probably doesn\'t exist')
+        console.error(err);
+      }
+    });
 
-  // Check if branch already exists
-  console.log(`##[info] Checking if branch ${config.branch} exists already`);
-  const branchCheck = await exec(`git branch --list "${config.branch}"`, {env, cwd: REPO_TEMP });
-  if (branchCheck.stdout.trim() === '') {
-    // Branch does not exist yet, let's create an initial commit
-    console.log(`##[info] ${config.branch} does not exist, creating initial commit`);
+    // Check if branch already exists
+    console.log(`##[info] Checking if branch ${config.branch} exists already`);
+    const branchCheck = await exec(`git branch --list "${config.branch}"`, {env, cwd: REPO_TEMP });
+    if (branchCheck.stdout.trim() === '') {
+      // Branch does not exist yet, let's create an initial commit
+      console.log(`##[info] ${config.branch} does not exist, creating initial commit`);
+      await exec(`git checkout --orphan "${config.branch}"`, { env, cwd: REPO_TEMP });
+      await exec(`git rm -rf .`, { env, cwd: REPO_TEMP }).catch(err => { });
+      await exec(`touch README.md`, { env, cwd: REPO_TEMP });
+      await exec(`git add README.md`, { env, cwd: REPO_TEMP });
+      await exec(`git commit -m "Initial ${config.branch} commit"`, { env, cwd: REPO_TEMP });
+      await exec(`git push "${config.repo}" "${config.branch}"`, { env, cwd: REPO_TEMP });
+    }
+
+    await exec(`git checkout "${config.branch}"`, { env, cwd: REPO_TEMP });
+  } else {
+    // Checkout a random branch so we can delete the target branch if it exists
+    console.log('Checking out temp branch');
+    await exec(`git checkout -b "${Math.random().toString(36).substring(2)}"`, { env, cwd: REPO_TEMP });
+    // Delete the target branch if it exists
+    await exec(`git branch -D "${config.branch}"`, { env, cwd: REPO_TEMP }).catch(err => { });
+    // Checkout target branch as an orphan
     await exec(`git checkout --orphan "${config.branch}"`, { env, cwd: REPO_TEMP });
-    await exec(`git rm -rf .`, { env, cwd: REPO_TEMP }).catch(err => { });
-    await exec(`touch README.md`, { env, cwd: REPO_TEMP });
-    await exec(`git add README.md`, { env, cwd: REPO_TEMP });
-    await exec(`git commit -m "Initial ${config.branch} commit"`, { env, cwd: REPO_TEMP });
-    await exec(`git push "${config.repo}" "${config.branch}"`, { env, cwd: REPO_TEMP });
+    console.log('Checked out orphan');
   }
 
   // Update contents of branch
   console.log(`##[info] Updating branch ${config.branch}`);
-  await exec(`git checkout "${config.branch}"`, { env, cwd: REPO_TEMP });
-  if (config.squashHistory) {
-    await exec(`git reset --HARD $(git rev-list --max-parents=0 --abbrev-commit HEAD)`, { env, cwd: REPO_TEMP });
-  }
   await exec(`git rm -rf .`, { env, cwd: REPO_TEMP }).catch(err => { });
   const folder = path.resolve(process.cwd(), config.folder);
   console.log(`##[info] Copying all files from ${folder}`);
