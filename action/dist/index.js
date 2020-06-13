@@ -603,6 +603,7 @@ var config = (function () {
     var repo = ENV.REPO;
     var branch = ENV.BRANCH;
     var folder = ENV.FOLDER;
+    var squashHistory = ENV.SQUASH_HISTORY === 'true';
     // Determine the type of URL
     if (repo === REPO_SELF) {
         if (!ENV.GITHUB_TOKEN)
@@ -614,6 +615,7 @@ var config = (function () {
             repo: url,
             branch: branch,
             folder: folder,
+            squashHistory: squashHistory,
             mode: 'self'
         };
         return config_1;
@@ -626,6 +628,7 @@ var config = (function () {
             repo: repo,
             branch: branch,
             folder: folder,
+            squashHistory: squashHistory,
             mode: 'ssh',
             parsedUrl: parsedUrl,
             privateKey: ENV.SSH_PRIVATE_KEY,
@@ -664,7 +667,7 @@ var writeToProcess = function (command, args, opts) { return new Promise(functio
     });
 }); };
 (function () { return __awaiter(void 0, void 0, void 0, function () {
-    var TMP_PATH, REPO_TEMP, SSH_AUTH_SOCK, event, _a, _b, name, email, sha, env, known_hosts, sshAgentMatch, _c, _d, branchCheck, folder, push;
+    var TMP_PATH, REPO_TEMP, SSH_AUTH_SOCK, event, _a, _b, name, email, sha, env, known_hosts, sshAgentMatch, _c, _d, branchCheck, folder, forceArg, push;
     var _e, _f;
     return __generator(this, function (_g) {
         switch (_g.label) {
@@ -752,6 +755,7 @@ var writeToProcess = function (command, args, opts) { return new Promise(functio
             case 13:
                 // Clone the target repo
                 _g.sent();
+                if (!!config.squashHistory) return [3 /*break*/, 24];
                 // Fetch branch if it exists
                 return [4 /*yield*/, exec("git fetch -u origin " + config.branch + ":" + config.branch, { env: env, cwd: REPO_TEMP }).catch(function (err) {
                         var s = err.toString();
@@ -791,41 +795,61 @@ var writeToProcess = function (command, args, opts) { return new Promise(functio
             case 21:
                 _g.sent();
                 _g.label = 22;
-            case 22:
-                // Update contents of branch
-                console.log("##[info] Updating branch " + config.branch);
-                return [4 /*yield*/, exec("git checkout \"" + config.branch + "\"", { env: env, cwd: REPO_TEMP })];
+            case 22: return [4 /*yield*/, exec("git checkout \"" + config.branch + "\"", { env: env, cwd: REPO_TEMP })];
             case 23:
                 _g.sent();
-                return [4 /*yield*/, exec("git rm -rf .", { env: env, cwd: REPO_TEMP }).catch(function (err) { })];
+                return [3 /*break*/, 28];
             case 24:
+                // Checkout a random branch so we can delete the target branch if it exists
+                console.log('Checking out temp branch');
+                return [4 /*yield*/, exec("git checkout -b \"" + Math.random().toString(36).substring(2) + "\"", { env: env, cwd: REPO_TEMP })];
+            case 25:
+                _g.sent();
+                // Delete the target branch if it exists
+                return [4 /*yield*/, exec("git branch -D \"" + config.branch + "\"", { env: env, cwd: REPO_TEMP }).catch(function (err) { })];
+            case 26:
+                // Delete the target branch if it exists
+                _g.sent();
+                // Checkout target branch as an orphan
+                return [4 /*yield*/, exec("git checkout --orphan \"" + config.branch + "\"", { env: env, cwd: REPO_TEMP })];
+            case 27:
+                // Checkout target branch as an orphan
+                _g.sent();
+                console.log('Checked out orphan');
+                _g.label = 28;
+            case 28:
+                // Update contents of branch
+                console.log("##[info] Updating branch " + config.branch);
+                return [4 /*yield*/, exec("git rm -rf .", { env: env, cwd: REPO_TEMP }).catch(function (err) { })];
+            case 29:
                 _g.sent();
                 folder = path.resolve(process.cwd(), config.folder);
                 console.log("##[info] Copying all files from " + folder);
                 // TODO: replace this copy with a node implementation
                 return [4 /*yield*/, exec("cp -rT " + folder + "/ ./", { env: env, cwd: REPO_TEMP })];
-            case 25:
+            case 30:
                 // TODO: replace this copy with a node implementation
                 _g.sent();
                 return [4 /*yield*/, exec("git add -A .", { env: env, cwd: REPO_TEMP })];
-            case 26:
+            case 31:
                 _g.sent();
                 return [4 /*yield*/, exec("git commit --allow-empty -m \"Update " + config.branch + " to output generated at " + sha + "\"", { env: env, cwd: REPO_TEMP })];
-            case 27:
+            case 32:
                 _g.sent();
                 console.log("##[info] Pushing");
-                return [4 /*yield*/, exec("git push origin \"" + config.branch + "\"", { env: env, cwd: REPO_TEMP })];
-            case 28:
+                forceArg = config.squashHistory ? '-f' : '';
+                return [4 /*yield*/, exec("git push " + forceArg + " origin \"" + config.branch + "\"", { env: env, cwd: REPO_TEMP })];
+            case 33:
                 push = _g.sent();
                 console.log(push.stdout);
                 console.log("##[info] Deployment Successful");
-                if (!(config.mode === 'ssh')) return [3 /*break*/, 30];
+                if (!(config.mode === 'ssh')) return [3 /*break*/, 35];
                 console.log("##[info] Killing ssh-agent");
                 return [4 /*yield*/, exec("ssh-agent -k", { env: env })];
-            case 29:
+            case 34:
                 _g.sent();
-                _g.label = 30;
-            case 30: return [2 /*return*/];
+                _g.label = 35;
+            case 35: return [2 /*return*/];
         }
     });
 }); })().catch(function (err) {
