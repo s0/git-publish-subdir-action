@@ -166,6 +166,7 @@ All configuration options are passed in via `env`, as environment variables.
 | `SSH_PRIVATE_KEY`  | The private key that should be used to authenticate on SSH. Don't include this directly in the workflow file, instead you must use [Secrets](https://help.github.com/en/articles/virtual-environments-for-github-actions#creating-and-using-secrets-encrypted-variables) | When `REPO` is an SSH URL |
 | `KNOWN_HOSTS_FILE` | Path to a file in the repository that contains the known SSH fingerprints for the target host. | When the target host is not github.com |
 | `GITHUB_TOKEN`     | Should always be equal to `${{ secrets.GITHUB_TOKEN }}` | When `REPO = self` |
+| `SQUASH_HISTORY`   | If set to `true`, all previous commits on the target branch will be discarded. For example, if you are deploying a static site with lots of binary artifacts, this can help the repository becoming overly bloated. | No |
 
 ## Usage with [Deploy Keys](https://developer.github.com/v3/guides/managing-deploy-keys/#deploy-keys)
 
