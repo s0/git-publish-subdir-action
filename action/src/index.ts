@@ -4,12 +4,14 @@ import gitUrlParse from "git-url-parse";
 import { homedir, tmpdir } from 'os';
 import * as path from 'path';
 import { promisify } from 'util';
+import git from 'isomorphic-git';
 
 const readFile = promisify(fs.readFile);
 const exec = promisify(child_process.exec);
 const copyFile = promisify(fs.copyFile);
 const mkdir = promisify(fs.mkdir);
 const mkdtemp = promisify(fs.mkdtemp);
+const stat = promisify(fs.stat);
 
 export interface EnvironmentVariables {
   /**
@@ -43,6 +45,17 @@ export interface EnvironmentVariables {
    * Set to "true" to clear all of the history of the target branch and force push
    */
   SQUASH_HISTORY?: string;
+  /**
+   * An optional template string to use for the commit message,
+   * if not provided, a default template is used.
+   * 
+   * A number of placeholders are available to use in template strings:
+   * * `{target-branch}` - the name of the target branch being updated
+   * * `{sha}` - the 7-character sha of the HEAD of the current branch
+   * * `{long-sha}` - the full sha of the HEAD of the current branch
+   * * `{msg}` - the commit message for the HEAD of the current branch
+   */
+  MESSAGE?: string;
 
   // Implicit environment variables passed by GitHub
 
@@ -59,6 +72,8 @@ declare global {
 }
 
 const ENV: EnvironmentVariables = process.env;
+
+const DEFAULT_MESSAGE = "Update {target-branch} to output generated at {sha}";
 
 // Error messages
 
@@ -100,6 +115,7 @@ interface BaseConfig {
   folder: string;
   repo: string;
   squashHistory: boolean;
+  message: string;
 }
 
 interface SshConfig extends BaseConfig {
@@ -137,6 +153,7 @@ const config: Config = (() => {
   const branch = ENV.BRANCH;
   const folder = ENV.FOLDER;
   const squashHistory = ENV.SQUASH_HISTORY === 'true';
+  const message = ENV.MESSAGE || DEFAULT_MESSAGE;
 
   // Determine the type of URL
   if (repo === REPO_SELF) {
@@ -150,7 +167,8 @@ const config: Config = (() => {
       branch,
       folder,
       squashHistory,
-      mode: 'self'
+      mode: 'self',
+      message,
     };
     return config;
   }
@@ -167,7 +185,8 @@ const config: Config = (() => {
       mode: 'ssh',
       parsedUrl,
       privateKey: ENV.SSH_PRIVATE_KEY,
-      knownHostsFile: ENV.KNOWN_HOSTS_FILE
+      knownHostsFile: ENV.KNOWN_HOSTS_FILE,
+      message,
     };
     return config;
   }
@@ -222,8 +241,58 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
   await exec(`git config --global user.name "${name}"`);
   await exec(`git config --global user.email "${email}"`);
 
-  // Get current sha of repo to use in commit message
-  const sha = (await exec(`git rev-parse HEAD`)).stdout.trim().substr(0, 7);
+  interface GitInformation {
+    commitMessage: string;
+    sha: string;
+  }
+
+  /**
+   * Get information about the current git repository
+   */
+  const getGitInformation = async (): Promise<GitInformation> => {
+    // Get the root git directory
+    let dir = process.cwd();
+    while (true) {
+      const isGitRepo = await stat(path.join(dir, '.git'))
+        .then(s => s.isDirectory())
+        .catch(() => false);
+      if (isGitRepo) {
+        break;
+      }
+      // We need to traverse up one
+      const next = path.dirname(dir);
+      if (next === dir) {
+        console.log(`##[info] Not running in git directory, unable to get information about source commit`);
+        return {
+          commitMessage: '',
+          sha: '',
+        };
+      } else {
+        dir = next;
+      }
+    }
+
+    // Get current sha of repo to use in commit message
+    const log = (await git.log({
+      fs,
+      depth: 1,
+      dir,
+    }));
+    const commit = log.length > 0 ? log[0] : undefined;
+    if (!commit) {
+      console.log(`##[info] Unable to get information about HEAD commit`);
+      return {
+        commitMessage: '',
+        sha: '',
+      };
+    }
+    return {
+      commitMessage: commit.commit.message,
+      sha: commit.oid,
+    }
+  }
+
+  const gitInfo = await getGitInformation();
 
   // Environment to pass to children
   const env = Object.assign({}, process.env, {
@@ -321,7 +390,18 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
   // TODO: replace this copy with a node implementation
   await exec(`cp -rT ${folder}/ ./`, { env, cwd: REPO_TEMP });
   await exec(`git add -A .`, { env, cwd: REPO_TEMP });
-  await exec(`git commit --allow-empty -m "Update ${config.branch} to output generated at ${sha}"`, { env, cwd: REPO_TEMP });
+  const message =
+    config.message
+      .replace(/\{target\-branch\}/g, config.branch)
+      .replace(/\{sha\}/g, gitInfo.sha.substr(0, 7))
+      .replace(/\{long\-sha\}/g, gitInfo.sha)
+      .replace(/\{msg\}/g, gitInfo.commitMessage);
+  await git.commit({
+    fs,
+    dir: REPO_TEMP,
+    message,
+    author: { email, name }
+  });
   console.log(`##[info] Pushing`);
   const forceArg = config.squashHistory ? '-f' : '';
   const push = await exec(`git push ${forceArg} origin "${config.branch}"`, { env, cwd: REPO_TEMP });

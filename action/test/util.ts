@@ -169,8 +169,14 @@ export const runWithGithubEnv = async (
 }
 
 /**
+ * Get the full sha of this repo
+ */
+export const getFullRepoSha = () =>
+  exec(`git rev-parse HEAD`, { cwd: TEST_DIR })
+    .then(r => r.stdout.trim());
+
+/**
  * Get the short sha of this repo
  */
 export const getRepoSha = () =>
-  exec(`git rev-parse HEAD`, { cwd: TEST_DIR })
-  .then(r => r.stdout.trim().substr(0, 7));
+  getFullRepoSha().then(sha => sha.substr(0, 7));
