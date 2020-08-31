@@ -56,6 +56,10 @@ export interface EnvironmentVariables {
    * * `{msg}` - the commit message for the HEAD of the current branch
    */
   MESSAGE?: string;
+  /**
+   * An optional string in git-check-ref-format to use for tagging the commit
+   */
+  TAG?: string;
 
   // Implicit environment variables passed by GitHub
 
@@ -67,7 +71,7 @@ export interface EnvironmentVariables {
 
 declare global {
   namespace NodeJS {
-    interface ProcessEnv extends EnvironmentVariables {}
+    interface ProcessEnv extends EnvironmentVariables { }
   }
 }
 
@@ -116,6 +120,7 @@ interface BaseConfig {
   repo: string;
   squashHistory: boolean;
   message: string;
+  tag?: string;
 }
 
 interface SshConfig extends BaseConfig {
@@ -154,6 +159,7 @@ const config: Config = (() => {
   const folder = ENV.FOLDER;
   const squashHistory = ENV.SQUASH_HISTORY === 'true';
   const message = ENV.MESSAGE || DEFAULT_MESSAGE;
+  const tag = ENV.TAG;
 
   // Determine the type of URL
   if (repo === REPO_SELF) {
@@ -169,6 +175,7 @@ const config: Config = (() => {
       squashHistory,
       mode: 'self',
       message,
+      tag,
     };
     return config;
   }
@@ -187,13 +194,14 @@ const config: Config = (() => {
       privateKey: ENV.SSH_PRIVATE_KEY,
       knownHostsFile: ENV.KNOWN_HOSTS_FILE,
       message,
+      tag,
     };
     return config;
   }
   throw new Error('Unsupported REPO URL');
 })();
 
-const writeToProcess = (command: string, args: string[], opts: {env: { [id: string]: string | undefined }; data: string;} ) => new Promise((resolve, reject) => {
+const writeToProcess = (command: string, args: string[], opts: { env: { [id: string]: string | undefined }; data: string; }) => new Promise((resolve, reject) => {
   const child = child_process.spawn(command, args, {
     env: opts.env,
     stdio: "pipe"
@@ -309,13 +317,13 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
     if (!known_hosts) {
       console.warn(KNOWN_HOSTS_WARNING);
     } else {
-      await mkdir(SSH_FOLDER, {recursive: true});
+      await mkdir(SSH_FOLDER, { recursive: true });
       await copyFile(known_hosts, KNOWN_HOSTS_TARGET);
     }
 
     // Setup ssh-agent with private key
     console.log(`Setting up ssh-agent on ${SSH_AUTH_SOCK}`);
-    const sshAgentMatch = SSH_AGENT_PID_EXTRACT.exec((await exec(`ssh-agent -a ${SSH_AUTH_SOCK}`, {env})).stdout);
+    const sshAgentMatch = SSH_AGENT_PID_EXTRACT.exec((await exec(`ssh-agent -a ${SSH_AUTH_SOCK}`, { env })).stdout);
     /* istanbul ignore if */
     if (!sshAgentMatch)
       throw new Error('Unexpected output from ssh-agent');
@@ -358,7 +366,7 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
 
     // Check if branch already exists
     console.log(`##[info] Checking if branch ${config.branch} exists already`);
-    const branchCheck = await exec(`git branch --list "${config.branch}"`, {env, cwd: REPO_TEMP });
+    const branchCheck = await exec(`git branch --list "${config.branch}"`, { env, cwd: REPO_TEMP });
     if (branchCheck.stdout.trim() === '') {
       // Branch does not exist yet, let's create an initial commit
       console.log(`##[info] ${config.branch} does not exist, creating initial commit`);
@@ -400,11 +408,19 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
     fs,
     dir: REPO_TEMP,
     message,
-    author: { email, name }
+    author: { email, name },
   });
+  if (config.tag) {
+    await git.tag({
+      fs,
+      dir: REPO_TEMP,
+      ref: config.tag,
+    });
+  }
   console.log(`##[info] Pushing`);
   const forceArg = config.squashHistory ? '-f' : '';
-  const push = await exec(`git push ${forceArg} origin "${config.branch}"`, { env, cwd: REPO_TEMP });
+  const tagsArg = config.tag ? '--tags' : '';
+  const push = await exec(`git push ${forceArg} origin "${config.branch} ${tagsArg}"`, { env, cwd: REPO_TEMP });
   console.log(push.stdout);
   console.log(`##[info] Deployment Successful`);
 
