@@ -411,6 +411,7 @@ const writeToProcess = (command: string, args: string[], opts: { env: { [id: str
     author: { email, name },
   });
   if (config.tag) {
+    console.log(`##[info] Tagging commit`)
     await git.tag({
       fs,
       dir: REPO_TEMP,
