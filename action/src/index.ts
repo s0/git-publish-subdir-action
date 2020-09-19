@@ -422,7 +422,7 @@ const writeToProcess = (command: string, args: string[], opts: { env: { [id: str
   console.log(`##[info] Pushing`);
   const forceArg = config.squashHistory ? '-f' : '';
   const tagsArg = tag ? '--tags' : '';
-  const push = await exec(`git push ${forceArg} origin "${config.branch} ${tagsArg}"`, { env, cwd: REPO_TEMP });
+  const push = await exec(`git push ${forceArg} origin "${config.branch}" ${tagsArg}`, { env, cwd: REPO_TEMP });
   console.log(push.stdout);
   console.log(`##[info] Deployment Successful`);
 
