@@ -8017,6 +8017,7 @@ var config = (function () {
     var folder = ENV.FOLDER;
     var squashHistory = ENV.SQUASH_HISTORY === 'true';
     var message = ENV.MESSAGE || DEFAULT_MESSAGE;
+    var tag = ENV.TAG;
     // Determine the type of URL
     if (repo === REPO_SELF) {
         if (!ENV.GITHUB_TOKEN)
@@ -8031,6 +8032,7 @@ var config = (function () {
             squashHistory: squashHistory,
             mode: 'self',
             message: message,
+            tag: tag,
         };
         return config_1;
     }
@@ -8048,6 +8050,7 @@ var config = (function () {
             privateKey: ENV.SSH_PRIVATE_KEY,
             knownHostsFile: ENV.KNOWN_HOSTS_FILE,
             message: message,
+            tag: tag,
         };
         return config_2;
     }
@@ -8308,24 +8311,34 @@ var writeToProcess = function (command, args, opts) { return new Promise(functio
                         fs: fs,
                         dir: REPO_TEMP,
                         message: message,
-                        author: { email: email, name: name }
+                        author: { email: email, name: name },
                     })];
             case 32:
                 _g.sent();
+                if (!config.tag) return [3 /*break*/, 34];
+                return [4 /*yield*/, isomorphic_git_1.default.tag({
+                        fs: fs,
+                        dir: REPO_TEMP,
+                        ref: config.tag,
+                    })];
+            case 33:
+                _g.sent();
+                _g.label = 34;
+            case 34:
                 console.log("##[info] Pushing");
                 forceArg = config.squashHistory ? '-f' : '';
                 return [4 /*yield*/, exec("git push " + forceArg + " origin \"" + config.branch + "\"", { env: env, cwd: REPO_TEMP })];
-            case 33:
+            case 35:
                 push = _g.sent();
                 console.log(push.stdout);
                 console.log("##[info] Deployment Successful");
-                if (!(config.mode === 'ssh')) return [3 /*break*/, 35];
+                if (!(config.mode === 'ssh')) return [3 /*break*/, 37];
                 console.log("##[info] Killing ssh-agent");
                 return [4 /*yield*/, exec("ssh-agent -k", { env: env })];
-            case 34:
+            case 36:
                 _g.sent();
-                _g.label = 35;
-            case 35: return [2 /*return*/];
+                _g.label = 37;
+            case 37: return [2 /*return*/];
         }
     });
 }); })().catch(function (err) {
