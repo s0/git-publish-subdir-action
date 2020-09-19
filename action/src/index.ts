@@ -360,17 +360,13 @@ const writeToProcess = (command: string, args: string[], opts: {env: { [id: stri
     console.log(`##[info] Checking if branch ${config.branch} exists already`);
     const branchCheck = await exec(`git branch --list "${config.branch}"`, {env, cwd: REPO_TEMP });
     if (branchCheck.stdout.trim() === '') {
-      // Branch does not exist yet, let's create an initial commit
-      console.log(`##[info] ${config.branch} does not exist, creating initial commit`);
+      // Branch does not exist yet, let's check it out as an orphan
+      console.log(`##[info] ${config.branch} does not exist, creating as orphan`);
       await exec(`git checkout --orphan "${config.branch}"`, { env, cwd: REPO_TEMP });
-      await exec(`git rm -rf .`, { env, cwd: REPO_TEMP }).catch(err => { });
-      await exec(`touch README.md`, { env, cwd: REPO_TEMP });
-      await exec(`git add README.md`, { env, cwd: REPO_TEMP });
-      await exec(`git commit -m "Initial ${config.branch} commit"`, { env, cwd: REPO_TEMP });
-      await exec(`git push "${config.repo}" "${config.branch}"`, { env, cwd: REPO_TEMP });
+    } else {
+      await exec(`git checkout "${config.branch}"`, { env, cwd: REPO_TEMP });
     }
 
-    await exec(`git checkout "${config.branch}"`, { env, cwd: REPO_TEMP });
   } else {
     // Checkout a random branch so we can delete the target branch if it exists
     console.log('Checking out temp branch');
