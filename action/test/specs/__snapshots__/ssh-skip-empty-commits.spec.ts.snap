@@ -1,0 +1,12 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Skip empty commits 1`] = `
+"msg:Update branch-a to output generated at <sha1>
+
+tree:b60735c9b4d9728b47c0f2752bb973cd6f3d9d80
+author:s0 <s0@users.noreply.github.com>
+msg:Update branch-a to output generated at <sha2>
+
+tree:8bf87c66655949e66937b11593cc4ae732d1f610
+author:s0 <s0@users.noreply.github.com>"
+`;

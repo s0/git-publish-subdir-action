@@ -168,6 +168,7 @@ All configuration options are passed in via `env`, as environment variables.
 | `KNOWN_HOSTS_FILE` | Path to a file in the repository that contains the known SSH fingerprints for the target host. | When the target host is not github.com |
 | `GITHUB_TOKEN`     | Should always be equal to `${{ secrets.GITHUB_TOKEN }}` | When `REPO = self` |
 | `SQUASH_HISTORY`   | If set to `true`, all previous commits on the target branch will be discarded. For example, if you are deploying a static site with lots of binary artifacts, this can help the repository becoming overly bloated. | No |
+| `SKIP_EMPTY_COMMITS` | If set to `true`, commits will only be pushed if the contents of the target branch will be changed as a result. This is useful if, for example, you'd like to easily track which upstream changes result in changes to your target branch. | No |
 | `MESSAGE`          | A custom template to use as the commit message pushed to the target branch. See [custom commit messages](#custom-commit-messages). | No |
 | `TAG` | A string following the [git-check-ref-format](https://git-scm.com/docs/git-check-ref-format) that tags the commit with a lightweight git-tag. | No |
 

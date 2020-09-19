@@ -7,8 +7,6 @@ const DATA_DIR = path.join(util.DATA_DIR, 'ssh-no-branch-github');
 
 it('Deploy to an existing branch on GitHub', async () => {
 
-  jest.setTimeout(1000 * 60 * 60);
-
   // Create empty repo
   await util.mkdir(REPO_DIR);
   await util.execWithOutput('git init --bare', { cwd: REPO_DIR });

@@ -46,6 +46,13 @@ export interface EnvironmentVariables {
    */
   SQUASH_HISTORY?: string;
   /**
+   * Set to "true" to avoid pushing commits that don't change any files.
+   * 
+   * This is useful for example when you want to be able to easily identify
+   * which upstream changes resulted in changes to this repository.
+   */
+  SKIP_EMPTY_COMMITS?: string;
+  /**
    * An optional template string to use for the commit message,
    * if not provided, a default template is used.
    * 
@@ -119,6 +126,7 @@ interface BaseConfig {
   folder: string;
   repo: string;
   squashHistory: boolean;
+  skipEmptyCommits: boolean;
   message: string;
   tag?: string;
 }
@@ -158,6 +166,7 @@ const config: Config = (() => {
   const branch = ENV.BRANCH;
   const folder = ENV.FOLDER;
   const squashHistory = ENV.SQUASH_HISTORY === 'true';
+  const skipEmptyCommits = ENV.SKIP_EMPTY_COMMITS === 'true';
   const message = ENV.MESSAGE || DEFAULT_MESSAGE;
   const tag = ENV.TAG;
 
@@ -173,6 +182,7 @@ const config: Config = (() => {
       branch,
       folder,
       squashHistory,
+      skipEmptyCommits,
       mode: 'self',
       message,
       tag,
@@ -189,6 +199,7 @@ const config: Config = (() => {
       branch,
       folder,
       squashHistory,
+      skipEmptyCommits,
       mode: 'ssh',
       parsedUrl,
       privateKey: ENV.SSH_PRIVATE_KEY,
@@ -414,6 +425,32 @@ const writeToProcess = (command: string, args: string[], opts: { env: { [id: str
       dir: REPO_TEMP,
       ref: tag,
     });
+  }
+  if (config.skipEmptyCommits) {
+    console.log(`##[info] Checking whether contents have changed before pushing`);
+    // Before we push, check whether it changed the tree,
+    // and avoid pushing if not
+    const head = await git.resolveRef({
+      fs,
+      dir: REPO_TEMP,
+      ref: 'HEAD'
+    });
+    const currentCommit = await git.readCommit({
+      fs,
+      dir: REPO_TEMP,
+      oid: head,
+    });
+    if (currentCommit.commit.parent.length === 1) {
+      const previousCommit = await git.readCommit({
+        fs,
+        dir: REPO_TEMP,
+        oid: currentCommit.commit.parent[0],
+      });
+      if (currentCommit.commit.tree === previousCommit.commit.tree) {
+        console.log(`##[info] Contents of target repo unchanged, exiting.`);
+        return;
+      }
+    }
   }
   console.log(`##[info] Pushing`);
   const forceArg = config.squashHistory ? '-f' : '';
