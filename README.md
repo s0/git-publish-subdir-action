@@ -24,6 +24,7 @@ jobs:
     steps:
 
     # Any prerequisite steps
+    - uses: actions/checkout@master
 
     # Deploy to local repo
     - name: Deploy
