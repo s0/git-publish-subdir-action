@@ -8016,6 +8016,7 @@ var config = (function () {
     var branch = ENV.BRANCH;
     var folder = ENV.FOLDER;
     var squashHistory = ENV.SQUASH_HISTORY === 'true';
+    var skipEmptyCommits = ENV.SKIP_EMPTY_COMMITS === 'true';
     var message = ENV.MESSAGE || DEFAULT_MESSAGE;
     var tag = ENV.TAG;
     // Determine the type of URL
@@ -8030,6 +8031,7 @@ var config = (function () {
             branch: branch,
             folder: folder,
             squashHistory: squashHistory,
+            skipEmptyCommits: skipEmptyCommits,
             mode: 'self',
             message: message,
             tag: tag,
@@ -8045,6 +8047,7 @@ var config = (function () {
             branch: branch,
             folder: folder,
             squashHistory: squashHistory,
+            skipEmptyCommits: skipEmptyCommits,
             mode: 'ssh',
             parsedUrl: parsedUrl,
             privateKey: ENV.SSH_PRIVATE_KEY,
@@ -8085,7 +8088,7 @@ var writeToProcess = function (command, args, opts) { return new Promise(functio
     });
 }); };
 (function () { return __awaiter(void 0, void 0, void 0, function () {
-    var TMP_PATH, REPO_TEMP, SSH_AUTH_SOCK, event, _a, _b, name, email, tag, getGitInformation, gitInfo, env, known_hosts, sshAgentMatch, _c, _d, branchCheck, folder, message, forceArg, tagsArg, push;
+    var TMP_PATH, REPO_TEMP, SSH_AUTH_SOCK, event, _a, _b, name, email, tag, getGitInformation, gitInfo, env, known_hosts, sshAgentMatch, _c, _d, branchCheck, folder, message, head, currentCommit, previousCommit, forceArg, tagsArg, push;
     var _e, _f;
     return __generator(this, function (_g) {
         switch (_g.label) {
@@ -8313,21 +8316,51 @@ var writeToProcess = function (command, args, opts) { return new Promise(functio
                 _g.sent();
                 _g.label = 30;
             case 30:
+                if (!config.skipEmptyCommits) return [3 /*break*/, 34];
+                console.log("##[info] Checking whether contents have changed before pushing");
+                return [4 /*yield*/, isomorphic_git_1.default.resolveRef({
+                        fs: fs,
+                        dir: REPO_TEMP,
+                        ref: 'HEAD'
+                    })];
+            case 31:
+                head = _g.sent();
+                return [4 /*yield*/, isomorphic_git_1.default.readCommit({
+                        fs: fs,
+                        dir: REPO_TEMP,
+                        oid: head,
+                    })];
+            case 32:
+                currentCommit = _g.sent();
+                if (!(currentCommit.commit.parent.length === 1)) return [3 /*break*/, 34];
+                return [4 /*yield*/, isomorphic_git_1.default.readCommit({
+                        fs: fs,
+                        dir: REPO_TEMP,
+                        oid: currentCommit.commit.parent[0],
+                    })];
+            case 33:
+                previousCommit = _g.sent();
+                if (currentCommit.commit.tree === previousCommit.commit.tree) {
+                    console.log("##[info] Contents of target repo unchanged, exiting.");
+                    return [2 /*return*/];
+                }
+                _g.label = 34;
+            case 34:
                 console.log("##[info] Pushing");
                 forceArg = config.squashHistory ? '-f' : '';
                 tagsArg = tag ? '--tags' : '';
                 return [4 /*yield*/, exec("git push " + forceArg + " origin \"" + config.branch + "\" " + tagsArg, { env: env, cwd: REPO_TEMP })];
-            case 31:
+            case 35:
                 push = _g.sent();
                 console.log(push.stdout);
                 console.log("##[info] Deployment Successful");
-                if (!(config.mode === 'ssh')) return [3 /*break*/, 33];
+                if (!(config.mode === 'ssh')) return [3 /*break*/, 37];
                 console.log("##[info] Killing ssh-agent");
                 return [4 /*yield*/, exec("ssh-agent -k", { env: env })];
-            case 32:
+            case 36:
                 _g.sent();
-                _g.label = 33;
-            case 33: return [2 /*return*/];
+                _g.label = 37;
+            case 37: return [2 /*return*/];
         }
     });
 }); })().catch(function (err) {
