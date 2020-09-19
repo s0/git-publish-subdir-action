@@ -8221,7 +8221,7 @@ var writeToProcess = function (command, args, opts) { return new Promise(functio
             case 13:
                 // Clone the target repo
                 _g.sent();
-                if (!!config.squashHistory) return [3 /*break*/, 24];
+                if (!!config.squashHistory) return [3 /*break*/, 20];
                 // Fetch branch if it exists
                 return [4 /*yield*/, exec("git fetch -u origin " + config.branch + ":" + config.branch, { env: env, cwd: REPO_TEMP }).catch(function (err) {
                         var s = err.toString();
@@ -8239,65 +8239,51 @@ var writeToProcess = function (command, args, opts) { return new Promise(functio
                 return [4 /*yield*/, exec("git branch --list \"" + config.branch + "\"", { env: env, cwd: REPO_TEMP })];
             case 15:
                 branchCheck = _g.sent();
-                if (!(branchCheck.stdout.trim() === '')) return [3 /*break*/, 22];
-                // Branch does not exist yet, let's create an initial commit
-                console.log("##[info] " + config.branch + " does not exist, creating initial commit");
+                if (!(branchCheck.stdout.trim() === '')) return [3 /*break*/, 17];
+                // Branch does not exist yet, let's check it out as an orphan
+                console.log("##[info] " + config.branch + " does not exist, creating as orphan");
                 return [4 /*yield*/, exec("git checkout --orphan \"" + config.branch + "\"", { env: env, cwd: REPO_TEMP })];
             case 16:
                 _g.sent();
-                return [4 /*yield*/, exec("git rm -rf .", { env: env, cwd: REPO_TEMP }).catch(function (err) { })];
-            case 17:
-                _g.sent();
-                return [4 /*yield*/, exec("touch README.md", { env: env, cwd: REPO_TEMP })];
+                return [3 /*break*/, 19];
+            case 17: return [4 /*yield*/, exec("git checkout \"" + config.branch + "\"", { env: env, cwd: REPO_TEMP })];
             case 18:
                 _g.sent();
-                return [4 /*yield*/, exec("git add README.md", { env: env, cwd: REPO_TEMP })];
-            case 19:
-                _g.sent();
-                return [4 /*yield*/, exec("git commit -m \"Initial " + config.branch + " commit\"", { env: env, cwd: REPO_TEMP })];
+                _g.label = 19;
+            case 19: return [3 /*break*/, 24];
             case 20:
-                _g.sent();
-                return [4 /*yield*/, exec("git push \"" + config.repo + "\" \"" + config.branch + "\"", { env: env, cwd: REPO_TEMP })];
-            case 21:
-                _g.sent();
-                _g.label = 22;
-            case 22: return [4 /*yield*/, exec("git checkout \"" + config.branch + "\"", { env: env, cwd: REPO_TEMP })];
-            case 23:
-                _g.sent();
-                return [3 /*break*/, 28];
-            case 24:
                 // Checkout a random branch so we can delete the target branch if it exists
                 console.log('Checking out temp branch');
                 return [4 /*yield*/, exec("git checkout -b \"" + Math.random().toString(36).substring(2) + "\"", { env: env, cwd: REPO_TEMP })];
-            case 25:
+            case 21:
                 _g.sent();
                 // Delete the target branch if it exists
                 return [4 /*yield*/, exec("git branch -D \"" + config.branch + "\"", { env: env, cwd: REPO_TEMP }).catch(function (err) { })];
-            case 26:
+            case 22:
                 // Delete the target branch if it exists
                 _g.sent();
                 // Checkout target branch as an orphan
                 return [4 /*yield*/, exec("git checkout --orphan \"" + config.branch + "\"", { env: env, cwd: REPO_TEMP })];
-            case 27:
+            case 23:
                 // Checkout target branch as an orphan
                 _g.sent();
                 console.log('Checked out orphan');
-                _g.label = 28;
-            case 28:
+                _g.label = 24;
+            case 24:
                 // Update contents of branch
                 console.log("##[info] Updating branch " + config.branch);
                 return [4 /*yield*/, exec("git rm -rf .", { env: env, cwd: REPO_TEMP }).catch(function (err) { })];
-            case 29:
+            case 25:
                 _g.sent();
                 folder = path.resolve(process.cwd(), config.folder);
                 console.log("##[info] Copying all files from " + folder);
                 // TODO: replace this copy with a node implementation
                 return [4 /*yield*/, exec("cp -rT " + folder + "/ ./", { env: env, cwd: REPO_TEMP })];
-            case 30:
+            case 26:
                 // TODO: replace this copy with a node implementation
                 _g.sent();
                 return [4 /*yield*/, exec("git add -A .", { env: env, cwd: REPO_TEMP })];
-            case 31:
+            case 27:
                 _g.sent();
                 message = config.message
                     .replace(/\{target\-branch\}/g, config.branch)
@@ -8310,22 +8296,22 @@ var writeToProcess = function (command, args, opts) { return new Promise(functio
                         message: message,
                         author: { email: email, name: name }
                     })];
-            case 32:
+            case 28:
                 _g.sent();
                 console.log("##[info] Pushing");
                 forceArg = config.squashHistory ? '-f' : '';
                 return [4 /*yield*/, exec("git push " + forceArg + " origin \"" + config.branch + "\"", { env: env, cwd: REPO_TEMP })];
-            case 33:
+            case 29:
                 push = _g.sent();
                 console.log(push.stdout);
                 console.log("##[info] Deployment Successful");
-                if (!(config.mode === 'ssh')) return [3 /*break*/, 35];
+                if (!(config.mode === 'ssh')) return [3 /*break*/, 31];
                 console.log("##[info] Killing ssh-agent");
                 return [4 /*yield*/, exec("ssh-agent -k", { env: env })];
-            case 34:
+            case 30:
                 _g.sent();
-                _g.label = 35;
-            case 35: return [2 /*return*/];
+                _g.label = 31;
+            case 31: return [2 /*return*/];
         }
     });
 }); })().catch(function (err) {
