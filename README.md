@@ -169,6 +169,7 @@ All configuration options are passed in via `env`, as environment variables.
 | `GITHUB_TOKEN`     | Should always be equal to `${{ secrets.GITHUB_TOKEN }}` | When `REPO = self` |
 | `SQUASH_HISTORY`   | If set to `true`, all previous commits on the target branch will be discarded. For example, if you are deploying a static site with lots of binary artifacts, this can help the repository becoming overly bloated. | No |
 | `MESSAGE`          | A custom template to use as the commit message pushed to the target branch. See [custom commit messages](#custom-commit-messages). | No |
+| `TAG` | A string following the [git-check-ref-format](https://git-scm.com/docs/git-check-ref-format) that tags the commit with a lightweight git-tag. | No |
 
 ## Custom commit messages
 

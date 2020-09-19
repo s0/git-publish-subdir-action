@@ -1,0 +1,23 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Test custom tags 1`] = `
+"msg:This is another commit follow up with no content changes
+
+tree:8bf87c66655949e66937b11593cc4ae732d1f610
+author:s0 <s0@users.noreply.github.com>
+msg:Update branch-a to output generated at <sha>
+
+tree:8bf87c66655949e66937b11593cc4ae732d1f610
+author:s0 <s0@users.noreply.github.com>"
+`;
+
+exports[`Test custom tags 2`] = `
+"msg:This is another commit follow up with no content changes
+
+tree:8bf87c66655949e66937b11593cc4ae732d1f610
+author:s0 <s0@users.noreply.github.com>
+msg:Update branch-a to output generated at <sha>
+
+tree:8bf87c66655949e66937b11593cc4ae732d1f610
+author:s0 <s0@users.noreply.github.com>"
+`;
