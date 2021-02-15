@@ -521,7 +521,7 @@ export const main = async ({
   const folder = path.resolve(process.cwd(), config.folder);
   log.log(`##[info] Copying all files from ${folder}`);
   // TODO: replace this copy with a node implementation
-  await exec(`cp -rT ${folder}/ ./`, { log, env: childEnv, cwd: REPO_TEMP });
+  await exec(`cp -rT "${folder}"/ ./`, { log, env: childEnv, cwd: REPO_TEMP });
   await exec(`git add -A .`, { log, env: childEnv, cwd: REPO_TEMP });
   const message = config.message
     .replace(/\{target\-branch\}/g, config.branch)
