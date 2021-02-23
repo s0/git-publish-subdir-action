@@ -8285,7 +8285,7 @@ var writeToProcess = function (command, args, opts) { return new Promise(functio
                 folder = path.resolve(process.cwd(), config.folder);
                 console.log("##[info] Copying all files from " + folder);
                 // TODO: replace this copy with a node implementation
-                return [4 /*yield*/, exec("cp -rT " + folder + "/ ./", { env: env, cwd: REPO_TEMP })];
+                return [4 /*yield*/, exec("cp -rT \"" + folder + "\"/ ./", { env: env, cwd: REPO_TEMP })];
             case 26:
                 // TODO: replace this copy with a node implementation
                 _g.sent();
