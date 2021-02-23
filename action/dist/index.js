@@ -8394,7 +8394,7 @@ exports.main = function (_a) {
                     folder = path.resolve(process.cwd(), config.folder);
                     log.log("##[info] Copying all files from " + folder);
                     // TODO: replace this copy with a node implementation
-                    return [4 /*yield*/, exports.exec("cp -rT " + folder + "/ ./", { log: log, env: childEnv, cwd: REPO_TEMP })];
+                    return [4 /*yield*/, exports.exec("cp -rT \"" + folder + "\"/ ./", { log: log, env: childEnv, cwd: REPO_TEMP })];
                 case 26:
                     // TODO: replace this copy with a node implementation
                     _j.sent();
