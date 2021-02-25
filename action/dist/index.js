@@ -1339,7 +1339,7 @@ module.exports = gitUp;
 var Buffer = __webpack_require__(293).Buffer
 
 module.exports = function(source, encoding) {
-  return new Buffer(source, encoding)
+  return new Buffer.from(source, encoding)
 }
 
 
@@ -1725,7 +1725,7 @@ if (Buffer.from && Buffer.alloc && Buffer.allocUnsafe && Buffer.allocUnsafeSlow)
 }
 
 function SafeBuffer (arg, encodingOrOffset, length) {
-  return Buffer(arg, encodingOrOffset, length)
+  return Buffer.from(arg, encodingOrOffset, length)
 }
 
 // Copy static methods from Buffer
@@ -1735,14 +1735,14 @@ SafeBuffer.from = function (arg, encodingOrOffset, length) {
   if (typeof arg === 'number') {
     throw new TypeError('Argument must not be a number')
   }
-  return Buffer(arg, encodingOrOffset, length)
+  return Buffer.from(arg, encodingOrOffset, length)
 }
 
 SafeBuffer.alloc = function (size, fill, encoding) {
   if (typeof size !== 'number') {
     throw new TypeError('Argument must be a number')
   }
-  var buf = Buffer(size)
+  var buf = Buffer.alloc(size)
   if (fill !== undefined) {
     if (typeof encoding === 'string') {
       buf.fill(fill, encoding)
@@ -1759,7 +1759,7 @@ SafeBuffer.allocUnsafe = function (size) {
   if (typeof size !== 'number') {
     throw new TypeError('Argument must be a number')
   }
-  return Buffer(size)
+  return Buffer.alloc(size)
 }
 
 SafeBuffer.allocUnsafeSlow = function (size) {
@@ -9415,7 +9415,7 @@ module.exports = create
 var Buffer = __webpack_require__(293).Buffer
 
 function create(size) {
-  return new Buffer(size)
+  return new Buffer.alloc(size)
 }
 
 
