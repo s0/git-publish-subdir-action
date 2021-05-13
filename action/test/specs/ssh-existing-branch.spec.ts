@@ -8,7 +8,6 @@ const REPO_CLONE_DIR = path.join(WORK_DIR, 'clone');
 const DATA_DIR = path.join(WORK_DIR, 'data');
 
 it('Deploy to a existing branch over ssh', async () => {
-
   // Create empty repo
   await util.mkdir(REPO_DIR);
   await util.wrappedExec('git init --bare', { cwd: REPO_DIR });
@@ -18,8 +17,12 @@ it('Deploy to a existing branch over ssh', async () => {
   await util.wrappedExec(`git clone "${REPO_DIR}" clone`, { cwd: WORK_DIR });
   await util.writeFile(path.join(REPO_CLONE_DIR, 'initial'), 'foobar');
   await util.wrappedExec(`git add -A .`, { cwd: REPO_CLONE_DIR });
-  await util.wrappedExec(`git config user.name "Test User"`, { cwd: REPO_CLONE_DIR });
-  await util.wrappedExec(`git config user.email "test@example.com"`, { cwd: REPO_CLONE_DIR });
+  await util.wrappedExec(`git config user.name "Test User"`, {
+    cwd: REPO_CLONE_DIR,
+  });
+  await util.wrappedExec(`git config user.email "test@example.com"`, {
+    cwd: REPO_CLONE_DIR,
+  });
   await util.wrappedExec(`git commit -m initial`, { cwd: REPO_CLONE_DIR });
   await util.wrappedExec(`git push origin master`, { cwd: REPO_CLONE_DIR });
 
@@ -41,17 +44,19 @@ it('Deploy to a existing branch over ssh', async () => {
     },
     's0/test',
     {},
-    's0',
+    's0'
   );
 
   // Check that the log of the repo is as expected
   // (check tree-hash, commit message, and author)
-  const log = (await util.exec(
-    'git log --pretty="format:msg:%s%ntree:%T%nauthor:%an <%ae>" master',
-    {
-      cwd: REPO_DIR
-    }
-  )).stdout;
+  const log = (
+    await util.exec(
+      'git log --pretty="format:msg:%s%ntree:%T%nauthor:%an <%ae>" master',
+      {
+        cwd: REPO_DIR,
+      }
+    )
+  ).stdout;
   const sha = await util.getRepoSha();
   const cleanedLog = log.replace(sha, '<sha>');
   expect(cleanedLog).toMatchSnapshot();

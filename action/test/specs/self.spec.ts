@@ -4,7 +4,8 @@ import * as util from '../util';
 
 const DATA_DIR = path.join(util.DATA_DIR, 'self');
 
-const RUNNING_IN_GITHUB = !!process.env.GITHUB_SELF_TEST_REPO && !!process.env.GITHUB_SELF_TEST_TOKEN;
+const RUNNING_IN_GITHUB =
+  !!process.env.GITHUB_SELF_TEST_REPO && !!process.env.GITHUB_SELF_TEST_TOKEN;
 
 /**
  * Unit test to only run in GitHub environment
@@ -12,14 +13,17 @@ const RUNNING_IN_GITHUB = !!process.env.GITHUB_SELF_TEST_REPO && !!process.env.G
 const itGithubOnly = RUNNING_IN_GITHUB ? it : xit;
 
 itGithubOnly('Deploy to another branch on self repo', async () => {
-
   const repo = process.env.GITHUB_SELF_TEST_REPO;
   if (!repo)
-    throw new Error('Environment variable GITHUB_SELF_TEST_REPO not set, needed for tests');
+    throw new Error(
+      'Environment variable GITHUB_SELF_TEST_REPO not set, needed for tests'
+    );
 
   const token = process.env.GITHUB_SELF_TEST_TOKEN;
   if (!token)
-    throw new Error('Environment variable GITHUB_SELF_TEST_TOKEN not set, needed for tests');
+    throw new Error(
+      'Environment variable GITHUB_SELF_TEST_TOKEN not set, needed for tests'
+    );
 
   // Create dummy data
   await util.mkdir(DATA_DIR);
@@ -38,7 +42,7 @@ itGithubOnly('Deploy to another branch on self repo', async () => {
     },
     repo,
     {},
-    's0',
+    's0'
   );
 
   // Check that the log of the repo is as expected

@@ -6,7 +6,6 @@ const REPO_DIR = path.join(util.REPOS_DIR, 'ssh-skip-empty-commits.git');
 const DATA_DIR = path.join(util.DATA_DIR, 'ssh-skip-empty-commits');
 
 it('Skip empty commits', async () => {
-
   // Create empty repo
   await util.mkdir(REPO_DIR);
   await util.wrappedExec('git init --bare', { cwd: REPO_DIR });
@@ -30,7 +29,7 @@ it('Skip empty commits', async () => {
     },
     's0/test',
     {},
-    's0',
+    's0'
   );
   const fullSha1 = await util.getFullRepoSha();
   // Change files and run action again
@@ -47,7 +46,7 @@ it('Skip empty commits', async () => {
     },
     's0/test',
     {},
-    's0',
+    's0'
   );
   const fullSha2 = await util.getFullRepoSha();
   // Run the action again with no content changes to test skip behaviour
@@ -63,18 +62,20 @@ it('Skip empty commits', async () => {
     },
     's0/test',
     {},
-    's0',
+    's0'
   );
 
   // Check that the log of the repo is as expected
   // (check tree-hash, commit message, and author)
   // TODO: test {msg} placeholder and running action outside of a git repo
-  let log = (await util.exec(
-    'git log --pretty="format:msg:%B%ntree:%T%nauthor:%an <%ae>" branch-a',
-    {
-      cwd: REPO_DIR
-    }
-  )).stdout;
+  let log = (
+    await util.exec(
+      'git log --pretty="format:msg:%B%ntree:%T%nauthor:%an <%ae>" branch-a',
+      {
+        cwd: REPO_DIR,
+      }
+    )
+  ).stdout;
   const sha1 = fullSha1.substr(0, 7);
   const sha2 = fullSha2.substr(0, 7);
   const cleanedLog = log.replace(sha1, '<sha1>').replace(sha2, '<sha2>');

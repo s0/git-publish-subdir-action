@@ -13,7 +13,6 @@ const RUNNING_IN_GITHUB = !!process.env.GITHUB_SSH_PRIVATE_KEY;
 const itGithubOnly = RUNNING_IN_GITHUB ? it : xit;
 
 itGithubOnly('Deploy to an existing branch on GitHub', async () => {
-
   // Create empty repo
   await util.mkdir(REPO_DIR);
   await util.wrappedExec('git init --bare', { cwd: REPO_DIR });

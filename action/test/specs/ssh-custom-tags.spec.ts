@@ -8,7 +8,6 @@ const REPO_DIR = path.join(util.REPOS_DIR, 'ssh-custom-tags.git');
 const DATA_DIR = path.join(util.DATA_DIR, 'ssh-custom-tags');
 
 it('Test custom tags', async () => {
-
   // Create empty repo
   await util.mkdir(REPO_DIR);
   await util.wrappedExec('git init --bare', { cwd: REPO_DIR });
@@ -31,7 +30,7 @@ it('Test custom tags', async () => {
     },
     's0/test',
     {},
-    's0',
+    's0'
   );
   // Run the action again to make sure that a commit is added even when there are
   // no content changes
@@ -48,17 +47,19 @@ it('Test custom tags', async () => {
     },
     's0/test',
     {},
-    's0',
+    's0'
   );
 
   {
     // Check that the log of the branch is as expected
-    let log = (await util.exec(
-      'git log --pretty="format:msg:%B%ntree:%T%nauthor:%an <%ae>" branch-a',
-      {
-        cwd: REPO_DIR
-      }
-    )).stdout;
+    let log = (
+      await util.exec(
+        'git log --pretty="format:msg:%B%ntree:%T%nauthor:%an <%ae>" branch-a',
+        {
+          cwd: REPO_DIR,
+        }
+      )
+    ).stdout;
     const fullSha = await util.getFullRepoSha();
     const sha = fullSha.substr(0, 7);
     const cleanedLog = log.replace(fullSha, '<long-sha>').replace(sha, '<sha>');
@@ -67,12 +68,14 @@ it('Test custom tags', async () => {
 
   {
     // Check that the log got the tag is also as expected
-    let log = (await util.exec(
-      'git log --pretty="format:msg:%B%ntree:%T%nauthor:%an <%ae>" foo-bar-tag-v0.1.2',
-      {
-        cwd: REPO_DIR
-      }
-    )).stdout;
+    let log = (
+      await util.exec(
+        'git log --pretty="format:msg:%B%ntree:%T%nauthor:%an <%ae>" foo-bar-tag-v0.1.2',
+        {
+          cwd: REPO_DIR,
+        }
+      )
+    ).stdout;
     const fullSha = await util.getFullRepoSha();
     const sha = fullSha.substr(0, 7);
     const cleanedLog = log.replace(fullSha, '<long-sha>').replace(sha, '<sha>');
@@ -91,5 +94,4 @@ it('Test custom tags', async () => {
     ref: 'refs/heads/branch-a',
   });
   expect(tagSha).toEqual(branchSha);
-
 });

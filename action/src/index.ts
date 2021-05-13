@@ -1,6 +1,6 @@
 import * as child_process from 'child_process';
 import * as fs from 'fs';
-import gitUrlParse from "git-url-parse";
+import gitUrlParse from 'git-url-parse';
 import { homedir, tmpdir } from 'os';
 import * as path from 'path';
 import { promisify } from 'util';
@@ -16,34 +16,33 @@ export type Console = {
   readonly log: (...msg: unknown[]) => void;
   readonly error: (...msg: unknown[]) => void;
   readonly warn: (...msg: unknown[]) => void;
-}
+};
 
 /**
  * Custom wrapper around the child_process module
  */
-export const exec = async (cmd: string, opts: {
-  env?: any,
-  cwd?: string,
-  log: Console
-}) => {
-  const {log} = opts;
+export const exec = async (
+  cmd: string,
+  opts: {
+    env?: any;
+    cwd?: string;
+    log: Console;
+  }
+) => {
+  const { log } = opts;
   const env = opts?.env || {};
-  const ps = child_process.spawn(
-    'bash',
-    ['-c', cmd],
-    {
-      env: {
-        HOME: process.env.HOME,
-        ...env
-      },
-      cwd: opts.cwd,
-      stdio: ['pipe', 'pipe', 'pipe'],
+  const ps = child_process.spawn('bash', ['-c', cmd], {
+    env: {
+      HOME: process.env.HOME,
+      ...env,
     },
-  );
+    cwd: opts.cwd,
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
 
   const output = {
     stderr: '',
-    stdout: ''
+    stdout: '',
   };
 
   // We won't be providing any input to command
@@ -58,16 +57,20 @@ export const exec = async (cmd: string, opts: {
   });
 
   return new Promise<{
-    stderr: string,
-    stdout: string,
-  }>((resolve, reject) => ps.on('close', code => {
-    if (code !== 0) {
-      reject(new Error('Process exited with code: ' + code + ':\n' + output.stderr));
-    } else {
-      resolve(output);
-    }
-  }));
-}
+    stderr: string;
+    stdout: string;
+  }>((resolve, reject) =>
+    ps.on('close', (code) => {
+      if (code !== 0) {
+        reject(
+          new Error('Process exited with code: ' + code + ':\n' + output.stderr)
+        );
+      } else {
+        resolve(output);
+      }
+    })
+  );
+};
 
 export interface EnvironmentVariables {
   /**
@@ -103,7 +106,7 @@ export interface EnvironmentVariables {
   SQUASH_HISTORY?: string;
   /**
    * Set to "true" to avoid pushing commits that don't change any files.
-   * 
+   *
    * This is useful for example when you want to be able to easily identify
    * which upstream changes resulted in changes to this repository.
    */
@@ -111,7 +114,7 @@ export interface EnvironmentVariables {
   /**
    * An optional template string to use for the commit message,
    * if not provided, a default template is used.
-   * 
+   *
    * A number of placeholders are available to use in template strings:
    * * `{target-branch}` - the name of the target branch being updated
    * * `{sha}` - the 7-character sha of the HEAD of the current branch
@@ -134,11 +137,11 @@ export interface EnvironmentVariables {
 
 declare global {
   namespace NodeJS {
-    interface ProcessEnv extends EnvironmentVariables { }
+    interface ProcessEnv extends EnvironmentVariables {}
   }
 }
 
-const DEFAULT_MESSAGE = "Update {target-branch} to output generated at {sha}";
+const DEFAULT_MESSAGE = 'Update {target-branch} to output generated at {sha}';
 
 // Error messages
 
@@ -163,7 +166,7 @@ const INVALID_KEY_ERROR = `
 ##[error] Error loading key: invalid format
 Please check that you're setting the environment variable
 SSH_PRIVATE_KEY correctly
-`
+`;
 
 // Paths
 
@@ -205,18 +208,15 @@ export interface Event {
   pusher?: {
     email?: string;
     name?: string;
-  }
+  };
 }
 
-const genConfig: (
-  env?: EnvironmentVariables
-) => Config = (env = process.env) => {
-  if (!env.REPO)
-    throw new Error('REPO must be specified');
-  if (!env.BRANCH)
-    throw new Error('BRANCH must be specified');
-  if (!env.FOLDER)
-    throw new Error('FOLDER must be specified');
+const genConfig: (env?: EnvironmentVariables) => Config = (
+  env = process.env
+) => {
+  if (!env.REPO) throw new Error('REPO must be specified');
+  if (!env.BRANCH) throw new Error('BRANCH must be specified');
+  if (!env.FOLDER) throw new Error('FOLDER must be specified');
 
   const repo = env.REPO;
   const branch = env.BRANCH;
@@ -232,7 +232,7 @@ const genConfig: (
       throw new Error('GITHUB_TOKEN must be specified when REPO == self');
     if (!env.GITHUB_REPOSITORY)
       throw new Error('GITHUB_REPOSITORY must be specified when REPO == self');
-    const url = `https://x-access-token:${env.GITHUB_TOKEN}@github.com/${env.GITHUB_REPOSITORY}.git`
+    const url = `https://x-access-token:${env.GITHUB_TOKEN}@github.com/${env.GITHUB_REPOSITORY}.git`;
     const config: Config = {
       repo: url,
       branch,
@@ -266,7 +266,7 @@ const genConfig: (
     return config;
   }
   throw new Error('Unsupported REPO URL');
-}
+};
 
 const writeToProcess = (
   command: string,
@@ -276,52 +276,66 @@ const writeToProcess = (
     data: string;
     log: Console;
   }
-) => new Promise<void>((resolve, reject) => {
-  const child = child_process.spawn(command, args, {
-    env: opts.env,
-    stdio: "pipe"
+) =>
+  new Promise<void>((resolve, reject) => {
+    const child = child_process.spawn(command, args, {
+      env: opts.env,
+      stdio: 'pipe',
+    });
+    child.stdin.setDefaultEncoding('utf-8');
+    child.stdin.write(opts.data);
+    child.stdin.end();
+    child.on('error', reject);
+    let stderr = '';
+    child.stdout.on('data', (data) => {
+      /* istanbul ignore next */
+      opts.log.log(data.toString());
+    });
+    child.stderr.on('data', (data) => {
+      stderr += data;
+      opts.log.error(data.toString());
+    });
+    child.on('close', (code) => {
+      /* istanbul ignore else */
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(stderr));
+      }
+    });
   });
-  child.stdin.setDefaultEncoding('utf-8');
-  child.stdin.write(opts.data);
-  child.stdin.end();
-  child.on('error', reject);
-  let stderr = '';
-  child.stdout.on('data', (data) => {
-    /* istanbul ignore next */
-    opts.log.log(data.toString());
-  });
-  child.stderr.on('data', (data) => {
-    stderr += data;
-    opts.log.error(data.toString());
-  });
-  child.on('close', (code) => {
-    /* istanbul ignore else */
-    if (code === 0) {
-      resolve();
-    } else {
-      reject(new Error(stderr));
-    }
-  });
-});
 
-export const main = async ({ env = process.env, log }: {env?: EnvironmentVariables, log: Console }) => {
-
+export const main = async ({
+  env = process.env,
+  log,
+}: {
+  env?: EnvironmentVariables;
+  log: Console;
+}) => {
   const config = genConfig(env);
 
   // Calculate paths that use temp diractory
 
-  const TMP_PATH = await mkdtemp(path.join(tmpdir(), 'git-publish-subdir-action-'));
+  const TMP_PATH = await mkdtemp(
+    path.join(tmpdir(), 'git-publish-subdir-action-')
+  );
   const REPO_TEMP = path.join(TMP_PATH, 'repo');
   const SSH_AUTH_SOCK = path.join(TMP_PATH, 'ssh_agent.sock');
 
-  if (!env.GITHUB_EVENT_PATH)
-    throw new Error('Expected GITHUB_EVENT_PATH');
+  if (!env.GITHUB_EVENT_PATH) throw new Error('Expected GITHUB_EVENT_PATH');
 
-  const event: Event = JSON.parse((await readFile(env.GITHUB_EVENT_PATH)).toString());
+  const event: Event = JSON.parse(
+    (await readFile(env.GITHUB_EVENT_PATH)).toString()
+  );
 
-  const name = event.pusher?.name || env.GITHUB_ACTOR || 'Git Publish Subdirectory';
-  const email = event.pusher?.email || (env.GITHUB_ACTOR ? `${env.GITHUB_ACTOR}@users.noreply.github.com` : 'nobody@nowhere');
-  const tag = env.TAG
+  const name =
+    event.pusher?.name || env.GITHUB_ACTOR || 'Git Publish Subdirectory';
+  const email =
+    event.pusher?.email ||
+    (env.GITHUB_ACTOR
+      ? `${env.GITHUB_ACTOR}@users.noreply.github.com`
+      : 'nobody@nowhere');
+  const tag = env.TAG;
 
   // Set Git Config
   await exec(`git config --global user.name "${name}"`, { log });
@@ -340,7 +354,7 @@ export const main = async ({ env = process.env, log }: {env?: EnvironmentVariabl
     let dir = process.cwd();
     while (true) {
       const isGitRepo = await stat(path.join(dir, '.git'))
-        .then(s => s.isDirectory())
+        .then((s) => s.isDirectory())
         .catch(() => false);
       if (isGitRepo) {
         break;
@@ -348,7 +362,9 @@ export const main = async ({ env = process.env, log }: {env?: EnvironmentVariabl
       // We need to traverse up one
       const next = path.dirname(dir);
       if (next === dir) {
-        log.log(`##[info] Not running in git directory, unable to get information about source commit`);
+        log.log(
+          `##[info] Not running in git directory, unable to get information about source commit`
+        );
         return {
           commitMessage: '',
           sha: '',
@@ -359,11 +375,11 @@ export const main = async ({ env = process.env, log }: {env?: EnvironmentVariabl
     }
 
     // Get current sha of repo to use in commit message
-    const gitLog = (await git.log({
+    const gitLog = await git.log({
       fs,
       depth: 1,
       dir,
-    }));
+    });
     const commit = gitLog.length > 0 ? gitLog[0] : undefined;
     if (!commit) {
       log.log(`##[info] Unable to get information about HEAD commit`);
@@ -375,14 +391,14 @@ export const main = async ({ env = process.env, log }: {env?: EnvironmentVariabl
     return {
       commitMessage: commit.commit.message,
       sha: commit.oid,
-    }
-  }
+    };
+  };
 
   const gitInfo = await getGitInformation();
 
   // Environment to pass to children
   const childEnv = Object.assign({}, process.env, {
-    SSH_AUTH_SOCK
+    SSH_AUTH_SOCK,
   });
 
   if (config.mode === 'ssh') {
@@ -401,16 +417,18 @@ export const main = async ({ env = process.env, log }: {env?: EnvironmentVariabl
 
     // Setup ssh-agent with private key
     log.log(`Setting up ssh-agent on ${SSH_AUTH_SOCK}`);
-    const sshAgentMatch = SSH_AGENT_PID_EXTRACT.exec((await exec(`ssh-agent -a ${SSH_AUTH_SOCK}`, { log, env: childEnv })).stdout);
+    const sshAgentMatch = SSH_AGENT_PID_EXTRACT.exec(
+      (await exec(`ssh-agent -a ${SSH_AUTH_SOCK}`, { log, env: childEnv }))
+        .stdout
+    );
     /* istanbul ignore if */
-    if (!sshAgentMatch)
-      throw new Error('Unexpected output from ssh-agent');
+    if (!sshAgentMatch) throw new Error('Unexpected output from ssh-agent');
     childEnv.SSH_AGENT_PID = sshAgentMatch[1];
     log.log(`Adding private key to ssh-agent at ${SSH_AUTH_SOCK}`);
     await writeToProcess('ssh-add', ['-'], {
       data: config.privateKey + '\n',
       env: childEnv,
-      log
+      log,
     });
     log.log(`Private key added`);
   }
@@ -418,15 +436,15 @@ export const main = async ({ env = process.env, log }: {env?: EnvironmentVariabl
   // Clone the target repo
   await exec(`git clone "${config.repo}" "${REPO_TEMP}"`, {
     log,
-    env: childEnv
-  }).catch(err => {
+    env: childEnv,
+  }).catch((err) => {
     const s = err.toString();
     /* istanbul ignore else */
     if (config.mode === 'ssh') {
       /* istanbul ignore else */
-      if (s.indexOf("Host key verification failed") !== -1) {
+      if (s.indexOf('Host key verification failed') !== -1) {
         log.error(KNOWN_HOSTS_ERROR(config.parsedUrl.resource));
-      } else if (s.indexOf("Permission denied (publickey") !== -1) {
+      } else if (s.indexOf('Permission denied (publickey') !== -1) {
         log.error(SSH_KEY_ERROR);
       }
     }
@@ -435,51 +453,81 @@ export const main = async ({ env = process.env, log }: {env?: EnvironmentVariabl
 
   if (!config.squashHistory) {
     // Fetch branch if it exists
-    await exec(`git fetch -u origin ${config.branch}:${config.branch}`, { log, env: childEnv, cwd: REPO_TEMP }).catch(err => {
+    await exec(`git fetch -u origin ${config.branch}:${config.branch}`, {
+      log,
+      env: childEnv,
+      cwd: REPO_TEMP,
+    }).catch((err) => {
       const s = err.toString();
       /* istanbul ignore if */
-      if (s.indexOf('Couldn\'t find remote ref') === -1) {
-        log.error('##[warning] Failed to fetch target branch, probably doesn\'t exist')
+      if (s.indexOf("Couldn't find remote ref") === -1) {
+        log.error(
+          "##[warning] Failed to fetch target branch, probably doesn't exist"
+        );
         log.error(err);
       }
     });
 
     // Check if branch already exists
     log.log(`##[info] Checking if branch ${config.branch} exists already`);
-    const branchCheck = await exec(`git branch --list "${config.branch}"`, { log, env: childEnv, cwd: REPO_TEMP });
+    const branchCheck = await exec(`git branch --list "${config.branch}"`, {
+      log,
+      env: childEnv,
+      cwd: REPO_TEMP,
+    });
     if (branchCheck.stdout.trim() === '') {
       // Branch does not exist yet, let's check it out as an orphan
       log.log(`##[info] ${config.branch} does not exist, creating as orphan`);
-      await exec(`git checkout --orphan "${config.branch}"`, { log, env: childEnv, cwd: REPO_TEMP });
+      await exec(`git checkout --orphan "${config.branch}"`, {
+        log,
+        env: childEnv,
+        cwd: REPO_TEMP,
+      });
     } else {
-      await exec(`git checkout "${config.branch}"`, { log, env: childEnv, cwd: REPO_TEMP });
+      await exec(`git checkout "${config.branch}"`, {
+        log,
+        env: childEnv,
+        cwd: REPO_TEMP,
+      });
     }
-
   } else {
     // Checkout a random branch so we can delete the target branch if it exists
     log.log('Checking out temp branch');
-    await exec(`git checkout -b "${Math.random().toString(36).substring(2)}"`, { log, env: childEnv, cwd: REPO_TEMP });
+    await exec(`git checkout -b "${Math.random().toString(36).substring(2)}"`, {
+      log,
+      env: childEnv,
+      cwd: REPO_TEMP,
+    });
     // Delete the target branch if it exists
-    await exec(`git branch -D "${config.branch}"`, { log, env: childEnv, cwd: REPO_TEMP }).catch(err => { });
+    await exec(`git branch -D "${config.branch}"`, {
+      log,
+      env: childEnv,
+      cwd: REPO_TEMP,
+    }).catch((err) => {});
     // Checkout target branch as an orphan
-    await exec(`git checkout --orphan "${config.branch}"`, { log, env: childEnv, cwd: REPO_TEMP });
+    await exec(`git checkout --orphan "${config.branch}"`, {
+      log,
+      env: childEnv,
+      cwd: REPO_TEMP,
+    });
     log.log('Checked out orphan');
   }
 
   // // Update contents of branch
   log.log(`##[info] Updating branch ${config.branch}`);
-  await exec(`git rm -rf .`, { log, env: childEnv, cwd: REPO_TEMP }).catch(err => { });
+  await exec(`git rm -rf .`, { log, env: childEnv, cwd: REPO_TEMP }).catch(
+    (err) => {}
+  );
   const folder = path.resolve(process.cwd(), config.folder);
   log.log(`##[info] Copying all files from ${folder}`);
   // TODO: replace this copy with a node implementation
   await exec(`cp -rT ${folder}/ ./`, { log, env: childEnv, cwd: REPO_TEMP });
   await exec(`git add -A .`, { log, env: childEnv, cwd: REPO_TEMP });
-  const message =
-    config.message
-      .replace(/\{target\-branch\}/g, config.branch)
-      .replace(/\{sha\}/g, gitInfo.sha.substr(0, 7))
-      .replace(/\{long\-sha\}/g, gitInfo.sha)
-      .replace(/\{msg\}/g, gitInfo.commitMessage);
+  const message = config.message
+    .replace(/\{target\-branch\}/g, config.branch)
+    .replace(/\{sha\}/g, gitInfo.sha.substr(0, 7))
+    .replace(/\{long\-sha\}/g, gitInfo.sha)
+    .replace(/\{msg\}/g, gitInfo.commitMessage);
   await git.commit({
     fs,
     dir: REPO_TEMP,
@@ -487,7 +535,7 @@ export const main = async ({ env = process.env, log }: {env?: EnvironmentVariabl
     author: { email, name },
   });
   if (tag) {
-    log.log(`##[info] Tagging commit with ${tag}`)
+    log.log(`##[info] Tagging commit with ${tag}`);
     await git.tag({
       fs,
       dir: REPO_TEMP,
@@ -501,7 +549,7 @@ export const main = async ({ env = process.env, log }: {env?: EnvironmentVariabl
     const head = await git.resolveRef({
       fs,
       dir: REPO_TEMP,
-      ref: 'HEAD'
+      ref: 'HEAD',
     });
     const currentCommit = await git.readCommit({
       fs,
@@ -523,7 +571,10 @@ export const main = async ({ env = process.env, log }: {env?: EnvironmentVariabl
   log.log(`##[info] Pushing`);
   const forceArg = config.squashHistory ? '-f' : '';
   const tagsArg = tag ? '--tags' : '';
-  const push = await exec(`git push ${forceArg} origin "${config.branch}" ${tagsArg}`, { log, env: childEnv, cwd: REPO_TEMP });
+  const push = await exec(
+    `git push ${forceArg} origin "${config.branch}" ${tagsArg}`,
+    { log, env: childEnv, cwd: REPO_TEMP }
+  );
   log.log(push.stdout);
   log.log(`##[info] Deployment Successful`);
 
@@ -531,5 +582,4 @@ export const main = async ({ env = process.env, log }: {env?: EnvironmentVariabl
     log.log(`##[info] Killing ssh-agent`);
     await exec(`ssh-agent -k`, { log, env: childEnv });
   }
-
 };

@@ -3,7 +3,6 @@ import * as path from 'path';
 import * as util from '../util';
 
 it('Custom Pusher', async () => {
-
   const REPO_DIR = path.join(util.REPOS_DIR, 'ssh-no-branch-custom-pusher.git');
   const DATA_DIR = path.join(util.DATA_DIR, 'ssh-no-branch-custom-pusher');
 
@@ -32,28 +31,35 @@ it('Custom Pusher', async () => {
       pusher: {
         email: 'bob@examle.com',
         name: 'Alice Bob',
-      }
+      },
     },
-    's0',
+    's0'
   );
 
   // Check that the log of the repo is as expected
   // (check tree-hash, commit message, and author)
-  const log = (await util.exec(
-    'git log --pretty="format:msg:%s%ntree:%T%nauthor:%an <%ae>" branch-a',
-    {
-      cwd: REPO_DIR
-    }
-  )).stdout;
+  const log = (
+    await util.exec(
+      'git log --pretty="format:msg:%s%ntree:%T%nauthor:%an <%ae>" branch-a',
+      {
+        cwd: REPO_DIR,
+      }
+    )
+  ).stdout;
   const sha = await util.getRepoSha();
   const cleanedLog = log.replace(sha, '<sha>');
   expect(cleanedLog).toMatchSnapshot();
 });
 
 it('Custom Pusher (invalid)', async () => {
-
-  const REPO_DIR = path.join(util.REPOS_DIR, 'ssh-no-branch-custom-pusher-invalid.git');
-  const DATA_DIR = path.join(util.DATA_DIR, 'ssh-no-branch-custom-pusher-invalid');
+  const REPO_DIR = path.join(
+    util.REPOS_DIR,
+    'ssh-no-branch-custom-pusher-invalid.git'
+  );
+  const DATA_DIR = path.join(
+    util.DATA_DIR,
+    'ssh-no-branch-custom-pusher-invalid'
+  );
 
   // Create empty repo
   await util.mkdir(REPO_DIR);
@@ -77,27 +83,31 @@ it('Custom Pusher (invalid)', async () => {
     },
     's0/test',
     {
-      pusher: {}
+      pusher: {},
     },
-    's0',
+    's0'
   );
 
   // Check that the log of the repo is as expected
   // (check tree-hash, commit message, and author)
-  const log = (await util.exec(
-    'git log --pretty="format:msg:%s%ntree:%T%nauthor:%an <%ae>" branch-a',
-    {
-      cwd: REPO_DIR
-    }
-  )).stdout;
+  const log = (
+    await util.exec(
+      'git log --pretty="format:msg:%s%ntree:%T%nauthor:%an <%ae>" branch-a',
+      {
+        cwd: REPO_DIR,
+      }
+    )
+  ).stdout;
   const sha = await util.getRepoSha();
   const cleanedLog = log.replace(sha, '<sha>');
   expect(cleanedLog).toMatchSnapshot();
 });
 
 it('No Pusher or Actor', async () => {
-
-  const REPO_DIR = path.join(util.REPOS_DIR, 'ssh-no-branch-custom-pusher-none.git');
+  const REPO_DIR = path.join(
+    util.REPOS_DIR,
+    'ssh-no-branch-custom-pusher-none.git'
+  );
   const DATA_DIR = path.join(util.DATA_DIR, 'ssh-no-branch-custom-pusher-none');
 
   // Create empty repo
@@ -120,17 +130,19 @@ it('No Pusher or Actor', async () => {
       SSH_PRIVATE_KEY: (await util.readFile(util.SSH_PRIVATE_KEY)).toString(),
       KNOWN_HOSTS_FILE: util.KNOWN_HOSTS,
     },
-    's0/test',
+    's0/test'
   );
 
   // Check that the log of the repo is as expected
   // (check tree-hash, commit message, and author)
-  const log = (await util.exec(
-    'git log --pretty="format:msg:%s%ntree:%T%nauthor:%an <%ae>" branch-a',
-    {
-      cwd: REPO_DIR
-    }
-  )).stdout;
+  const log = (
+    await util.exec(
+      'git log --pretty="format:msg:%s%ntree:%T%nauthor:%an <%ae>" branch-a',
+      {
+        cwd: REPO_DIR,
+      }
+    )
+  ).stdout;
   const sha = await util.getRepoSha();
   const cleanedLog = log.replace(sha, '<sha>');
   expect(cleanedLog).toMatchSnapshot();

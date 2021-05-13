@@ -6,7 +6,6 @@ const REPO_DIR = path.join(util.REPOS_DIR, 'ssh-no-branch.git');
 const DATA_DIR = path.join(util.DATA_DIR, 'ssh-no-branch');
 
 it('Deploy to a new branch over ssh', async () => {
-
   // Create empty repo
   await util.mkdir(REPO_DIR);
   await util.wrappedExec('git init --bare', { cwd: REPO_DIR });
@@ -29,17 +28,19 @@ it('Deploy to a new branch over ssh', async () => {
     },
     's0/test',
     {},
-    's0',
+    's0'
   );
 
   // Check that the log of the repo is as expected
   // (check tree-hash, commit message, and author)
-  const log = (await util.exec(
-    'git log --pretty="format:msg:%s%ntree:%T%nauthor:%an <%ae>" branch-a',
-    {
-      cwd: REPO_DIR
-    }
-  )).stdout;
+  const log = (
+    await util.exec(
+      'git log --pretty="format:msg:%s%ntree:%T%nauthor:%an <%ae>" branch-a',
+      {
+        cwd: REPO_DIR,
+      }
+    )
+  ).stdout;
   const sha = await util.getRepoSha();
   const cleanedLog = log.replace(sha, '<sha>');
   expect(cleanedLog).toMatchSnapshot();
