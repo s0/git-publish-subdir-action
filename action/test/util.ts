@@ -2,9 +2,9 @@ import dotenv from 'dotenv';
 import * as child_process from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
-import { promisify } from 'util';
+import { promisify, format } from 'util';
 
-import { EnvironmentVariables, Event } from '../src';
+import { EnvironmentVariables, Console, Event, main } from '../src';
 
 dotenv.config();
 
@@ -31,17 +31,20 @@ export const getGitHubSSHPrivateKey = () => {
   return key;
 }
 
-export const execWithOutput = async (
+export const wrappedExec = async (
   command: string,
   opts?: child_process.ExecOptions,
+  extra?: {
+    logToConsole?: true;
+  }
 ) => {
   const result = await exec(command, opts);
   const stdout = result.stdout.toString();
   const stderr = result.stderr.toString();
-  if (stderr.length > 0) {
+  if (stderr.length > 0 && extra?.logToConsole) {
     console.log(stderr);
   }
-  if (stdout.length > 0) {
+  if (stdout.length > 0 && extra?.logToConsole) {
     console.log(stdout);
   }
   return result;
@@ -92,9 +95,11 @@ export const runWithEnv = async (
     'src'
   ];
 
+  const uid = process.getuid().toString();
+
   const ps = child_process.spawn(
     'docker',
-    ['exec', ...envVars, '-u', 'test', 'test-node', 'npx', 'nyc', '--temp-dir', `./.nyc_output/${reportName}`, '--reporter=none', ...nodeCmd],
+    ['exec', ...envVars, '-u', uid, 'test-node', 'npx', 'nyc', '--temp-dir', `./.nyc_output/${reportName}`, '--reporter=none', ...nodeCmd],
     {
       env: {
         ...process.env,
@@ -129,6 +134,7 @@ export const runWithEnv = async (
 
 interface ExtendedRunOptions extends RunOptions {
   excludeEventPath?: true;
+  logToConsole?: true;
 }
 
 export const runWithGithubEnv = async (
@@ -143,28 +149,46 @@ export const runWithGithubEnv = async (
   const file = path.join(DATA_DIR, `event-${new Date().getTime()}.json`);
   await writeFile(file, JSON.stringify(event || {}));
 
-  const postRun = async () => {
-    // Process Coverage
-    await exec(`docker exec -u test test-node npx nyc merge ./.nyc_output/${reportName} ./.nyc_output/${reportName}.json`);
-    // Remove Run-Related Files
-    await exec(`docker exec -u test test-node ./test/bin/post-run-clean.sh`);
+  const finalEnv: EnvironmentVariables = {
+    ...env,
+    ...(actor ? { GITHUB_ACTOR: actor } : {}),
+    ...(repo ? { GITHUB_REPOSITORY: repo } : {}),
+    ...(opts?.excludeEventPath ? {} : { GITHUB_EVENT_PATH: file }),
   }
 
-  return await runWithEnv(
-    reportName,
-    {
-      ...env,
-      ...(actor ? { GITHUB_ACTOR: actor } : {}),
-      ...(repo ? { GITHUB_REPOSITORY: repo } : {}),
-      ...(opts?.excludeEventPath ? {} : { GITHUB_EVENT_PATH: file }),
+  const output = {
+    stderr: '',
+    stdout: ''
+  };
+  const log: Console = {
+    log: (...msg: unknown[]) => {
+      output.stdout += msg.map(format).join(' ') + '\n';
+      if (opts?.logToConsole) {
+        console.log(...msg);
+      }
     },
-    opts,
-  ).then(async result => {
-    await postRun();
+    error: (...msg: unknown[]) => {
+      output.stderr += msg.map(format).join(' ') + '\n';
+      if (opts?.logToConsole) {
+        console.error(...msg);
+      }
+    },
+    warn: (...msg: unknown[]) => {
+      output.stderr += msg.map(format).join(' ') + '\n';
+      if (opts?.logToConsole) {
+        console.warn(...msg);
+      }
+    },
+  } as const;
+
+  return await main({
+    env: finalEnv,
+    log: log
+  }).then(async result => {
     return result;
   }).catch(async err => {
-    await postRun();
-    throw err;
+    output.stderr += format(err) + '\n';
+    throw new TestRunError(format(err), output);
   });
 }
 

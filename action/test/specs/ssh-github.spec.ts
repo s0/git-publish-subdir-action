@@ -5,11 +5,17 @@ import * as util from '../util';
 const REPO_DIR = path.join(util.REPOS_DIR, 'ssh-no-branch-github.git');
 const DATA_DIR = path.join(util.DATA_DIR, 'ssh-no-branch-github');
 
-it('Deploy to an existing branch on GitHub', async () => {
+const RUNNING_IN_GITHUB = !!process.env.GITHUB_SSH_PRIVATE_KEY;
 
+/**
+ * Unit test to only run in GitHub environment
+ */
+const itGithubOnly = RUNNING_IN_GITHUB ? it : xit;
+
+itGithubOnly('Deploy to an existing branch on GitHub', async () => {
   // Create empty repo
   await util.mkdir(REPO_DIR);
-  await util.execWithOutput('git init --bare', { cwd: REPO_DIR });
+  await util.wrappedExec('git init --bare', { cwd: REPO_DIR });
 
   // Create dummy data
   await util.mkdir(DATA_DIR);

@@ -143,13 +143,17 @@ jobs:
     - name: Run Unit Tests
       run: |
         cd action
-        npm run test
+        npm run test -- --coverage
       env:
         GITHUB_SSH_PRIVATE_KEY: ${{ secrets.TESTING_PRIVATE_KEY }}
         GITHUB_SELF_TEST_REPO: ${{ github.repository }}
         GITHUB_SELF_TEST_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Check Linting
+      run: |
+        cd action
+        npm run lint
     - name: Submit to CodeCov
       uses: codecov/codecov-action@v1
       with:
-        file: ./action/coverage.lcov
+        file: ./action/coverage/lcov.info
         fail_ci_if_error: true

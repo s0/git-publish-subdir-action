@@ -4,3 +4,4 @@
 /test/data
 /coverage.lcov
 /.env
+/coverage

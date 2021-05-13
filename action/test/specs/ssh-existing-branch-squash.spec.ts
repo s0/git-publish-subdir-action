@@ -8,26 +8,29 @@ const REPO_CLONE_DIR = path.join(WORK_DIR, 'clone');
 const DATA_DIR = path.join(WORK_DIR, 'data');
 
 it('Deploy to a existing branch over ssh, and squash commits', async () => {
-
   // Create empty repo
   await util.mkdir(REPO_DIR);
-  await util.execWithOutput('git init --bare', { cwd: REPO_DIR });
+  await util.wrappedExec('git init --bare', { cwd: REPO_DIR });
 
   // Clone repo, and create an initial commit
   await util.mkdir(WORK_DIR);
-  await util.execWithOutput(`git clone "${REPO_DIR}" clone`, { cwd: WORK_DIR });
-  await util.execWithOutput(`git config user.name "Test User"`, { cwd: REPO_CLONE_DIR });
-  await util.execWithOutput(`git config user.email "test@example.com"`, { cwd: REPO_CLONE_DIR });
+  await util.wrappedExec(`git clone "${REPO_DIR}" clone`, { cwd: WORK_DIR });
+  await util.wrappedExec(`git config user.name "Test User"`, {
+    cwd: REPO_CLONE_DIR,
+  });
+  await util.wrappedExec(`git config user.email "test@example.com"`, {
+    cwd: REPO_CLONE_DIR,
+  });
   // Create first commit
   await util.writeFile(path.join(REPO_CLONE_DIR, 'initial'), 'foobar');
-  await util.execWithOutput(`git add -A .`, { cwd: REPO_CLONE_DIR });
-  await util.execWithOutput(`git commit -m initial`, { cwd: REPO_CLONE_DIR });
-  await util.execWithOutput(`git push origin master`, { cwd: REPO_CLONE_DIR });
+  await util.wrappedExec(`git add -A .`, { cwd: REPO_CLONE_DIR });
+  await util.wrappedExec(`git commit -m initial`, { cwd: REPO_CLONE_DIR });
+  await util.wrappedExec(`git push origin master`, { cwd: REPO_CLONE_DIR });
   // Create second commit
   await util.writeFile(path.join(REPO_CLONE_DIR, 'secondary'), 'foobar');
-  await util.execWithOutput(`git add -A .`, { cwd: REPO_CLONE_DIR });
-  await util.execWithOutput(`git commit -m secondary`, { cwd: REPO_CLONE_DIR });
-  await util.execWithOutput(`git push origin master`, { cwd: REPO_CLONE_DIR });
+  await util.wrappedExec(`git add -A .`, { cwd: REPO_CLONE_DIR });
+  await util.wrappedExec(`git commit -m secondary`, { cwd: REPO_CLONE_DIR });
+  await util.wrappedExec(`git push origin master`, { cwd: REPO_CLONE_DIR });
 
   // Create dummy data
   await util.mkdir(DATA_DIR);
@@ -44,7 +47,7 @@ it('Deploy to a existing branch over ssh, and squash commits', async () => {
       FOLDER: DATA_DIR,
       SSH_PRIVATE_KEY: (await util.readFile(util.SSH_PRIVATE_KEY)).toString(),
       KNOWN_HOSTS_FILE: util.KNOWN_HOSTS,
-      SQUASH_HISTORY:'true'
+      SQUASH_HISTORY: 'true',
     },
     's0/test',
     {},
@@ -53,12 +56,14 @@ it('Deploy to a existing branch over ssh, and squash commits', async () => {
 
   // Check that the log of the repo is as expected
   // (check tree-hash, commit message, and author)
-  const log = (await util.exec(
-    'git log --pretty="format:msg:%s%ntree:%T%nauthor:%an <%ae>" master',
-    {
-      cwd: REPO_DIR
-    }
-  )).stdout;
+  const log = (
+    await util.exec(
+      'git log --pretty="format:msg:%s%ntree:%T%nauthor:%an <%ae>" master',
+      {
+        cwd: REPO_DIR,
+      }
+    )
+  ).stdout;
   const sha = await util.getRepoSha();
   const cleanedLog = log.replace(sha, '<sha>');
   expect(cleanedLog).toMatchSnapshot();

@@ -6,10 +6,9 @@ const REPO_DIR = path.join(util.REPOS_DIR, 'ssh-custom-messages.git');
 const DATA_DIR = path.join(util.DATA_DIR, 'ssh-custom-messages');
 
 it('Test custom message templates', async () => {
-
   // Create empty repo
   await util.mkdir(REPO_DIR);
-  await util.execWithOutput('git init --bare', { cwd: REPO_DIR });
+  await util.wrappedExec('git init --bare', { cwd: REPO_DIR });
 
   // Create dummy data
   await util.mkdir(DATA_DIR);
@@ -26,11 +25,12 @@ it('Test custom message templates', async () => {
       FOLDER: DATA_DIR,
       SSH_PRIVATE_KEY: (await util.readFile(util.SSH_PRIVATE_KEY)).toString(),
       KNOWN_HOSTS_FILE: util.KNOWN_HOSTS,
-      MESSAGE: 'This is a test message with placeholders:\n* {long-sha}\n* {sha}\n* {branch}',
+      MESSAGE:
+        'This is a test message with placeholders:\n* {long-sha}\n* {sha}\n* {branch}',
     },
     's0/test',
     {},
-    's0',
+    's0'
   );
   // Run the action again to make sure that a commit is added even when there are
   // no content changes
@@ -46,18 +46,20 @@ it('Test custom message templates', async () => {
     },
     's0/test',
     {},
-    's0',
+    's0'
   );
 
   // Check that the log of the repo is as expected
   // (check tree-hash, commit message, and author)
   // TODO: test {msg} placeholder and running action outside of a git repo
-  let log = (await util.exec(
-    'git log --pretty="format:msg:%B%ntree:%T%nauthor:%an <%ae>" branch-a',
-    {
-      cwd: REPO_DIR
-    }
-  )).stdout;
+  let log = (
+    await util.exec(
+      'git log --pretty="format:msg:%B%ntree:%T%nauthor:%an <%ae>" branch-a',
+      {
+        cwd: REPO_DIR,
+      }
+    )
+  ).stdout;
   const fullSha = await util.getFullRepoSha();
   const sha = fullSha.substr(0, 7);
   const cleanedLog = log.replace(fullSha, '<long-sha>').replace(sha, '<sha>');

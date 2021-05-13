@@ -1,10 +1,14 @@
 {
   "name": "git-publish-subdir-action",
   "scripts": {
-    "build": "tsc && ncc build lib/src",
+    "build": "tsc && ncc build lib/src/run",
+    "lint-prettier": "prettier -c src/**/* test/**/*.ts",
+    "lint": "npm run lint-prettier",
+    "lint:fix": "prettier -w src/**/* test/**/*.ts",
     "start": "node lib",
-    "test": "jest --projects test/jest.config.js --runInBand --verbose",
-    "test-run": "nyc ts-node --transpile-only src"
+    "test-init": "jest --projects test/jest.config.js --runInBand --verbose",
+    "test-run": "nyc ts-node --transpile-only src",
+    "test": "./test/bin/run-tests.sh --colors"
   },
   "devDependencies": {
     "@types/git-url-parse": "^9.0.0",
@@ -14,7 +18,7 @@
     "dotenv": "^8.2.0",
     "git-url-parse": "^11.1.2",
     "jest": "^26.0.1",
-    "nyc": "^15.1.0",
+    "prettier": "^2.3.0",
     "ts-jest": "^26.1.0",
     "ts-node": "^8.10.2",
     "typescript": "^3.9.3"

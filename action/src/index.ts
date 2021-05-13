@@ -1,17 +1,76 @@
 import * as child_process from 'child_process';
 import * as fs from 'fs';
-import gitUrlParse from "git-url-parse";
+import gitUrlParse from 'git-url-parse';
 import { homedir, tmpdir } from 'os';
 import * as path from 'path';
 import { promisify } from 'util';
 import git from 'isomorphic-git';
 
 const readFile = promisify(fs.readFile);
-const exec = promisify(child_process.exec);
 const copyFile = promisify(fs.copyFile);
 const mkdir = promisify(fs.mkdir);
 const mkdtemp = promisify(fs.mkdtemp);
 const stat = promisify(fs.stat);
+
+export type Console = {
+  readonly log: (...msg: unknown[]) => void;
+  readonly error: (...msg: unknown[]) => void;
+  readonly warn: (...msg: unknown[]) => void;
+};
+
+/**
+ * Custom wrapper around the child_process module
+ */
+export const exec = async (
+  cmd: string,
+  opts: {
+    env?: any;
+    cwd?: string;
+    log: Console;
+  }
+) => {
+  const { log } = opts;
+  const env = opts?.env || {};
+  const ps = child_process.spawn('bash', ['-c', cmd], {
+    env: {
+      HOME: process.env.HOME,
+      ...env,
+    },
+    cwd: opts.cwd,
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+
+  const output = {
+    stderr: '',
+    stdout: '',
+  };
+
+  // We won't be providing any input to command
+  ps.stdin.end();
+  ps.stdout.on('data', (data) => {
+    output.stdout += data;
+    log.log(`data`, data.toString());
+  });
+  ps.stderr.on('data', (data) => {
+    output.stderr += data;
+    log.error(data.toString());
+  });
+
+  return new Promise<{
+    stderr: string;
+    stdout: string;
+  }>((resolve, reject) =>
+    ps.on('close', (code) => {
+      if (code !== 0) {
+        reject(
+          new Error('Process exited with code: ' + code + ':\n' + output.stderr)
+        );
+      } else {
+        resolve(output);
+      }
+    })
+  );
+};
 
 export interface EnvironmentVariables {
   /**
@@ -47,7 +106,7 @@ export interface EnvironmentVariables {
   SQUASH_HISTORY?: string;
   /**
    * Set to "true" to avoid pushing commits that don't change any files.
-   * 
+   *
    * This is useful for example when you want to be able to easily identify
    * which upstream changes resulted in changes to this repository.
    */
@@ -55,7 +114,7 @@ export interface EnvironmentVariables {
   /**
    * An optional template string to use for the commit message,
    * if not provided, a default template is used.
-   * 
+   *
    * A number of placeholders are available to use in template strings:
    * * `{target-branch}` - the name of the target branch being updated
    * * `{sha}` - the 7-character sha of the HEAD of the current branch
@@ -78,13 +137,11 @@ export interface EnvironmentVariables {
 
 declare global {
   namespace NodeJS {
-    interface ProcessEnv extends EnvironmentVariables { }
+    interface ProcessEnv extends EnvironmentVariables {}
   }
 }
 
-const ENV: EnvironmentVariables = process.env;
-
-const DEFAULT_MESSAGE = "Update {target-branch} to output generated at {sha}";
+const DEFAULT_MESSAGE = 'Update {target-branch} to output generated at {sha}';
 
 // Error messages
 
@@ -109,7 +166,7 @@ const INVALID_KEY_ERROR = `
 ##[error] Error loading key: invalid format
 Please check that you're setting the environment variable
 SSH_PRIVATE_KEY correctly
-`
+`;
 
 // Paths
 
@@ -151,32 +208,31 @@ export interface Event {
   pusher?: {
     email?: string;
     name?: string;
-  }
+  };
 }
 
-const config: Config = (() => {
-  if (!ENV.REPO)
-    throw new Error('REPO must be specified');
-  if (!ENV.BRANCH)
-    throw new Error('BRANCH must be specified');
-  if (!ENV.FOLDER)
-    throw new Error('FOLDER must be specified');
+const genConfig: (env?: EnvironmentVariables) => Config = (
+  env = process.env
+) => {
+  if (!env.REPO) throw new Error('REPO must be specified');
+  if (!env.BRANCH) throw new Error('BRANCH must be specified');
+  if (!env.FOLDER) throw new Error('FOLDER must be specified');
 
-  const repo = ENV.REPO;
-  const branch = ENV.BRANCH;
-  const folder = ENV.FOLDER;
-  const squashHistory = ENV.SQUASH_HISTORY === 'true';
-  const skipEmptyCommits = ENV.SKIP_EMPTY_COMMITS === 'true';
-  const message = ENV.MESSAGE || DEFAULT_MESSAGE;
-  const tag = ENV.TAG;
+  const repo = env.REPO;
+  const branch = env.BRANCH;
+  const folder = env.FOLDER;
+  const squashHistory = env.SQUASH_HISTORY === 'true';
+  const skipEmptyCommits = env.SKIP_EMPTY_COMMITS === 'true';
+  const message = env.MESSAGE || DEFAULT_MESSAGE;
+  const tag = env.TAG;
 
   // Determine the type of URL
   if (repo === REPO_SELF) {
-    if (!ENV.GITHUB_TOKEN)
+    if (!env.GITHUB_TOKEN)
       throw new Error('GITHUB_TOKEN must be specified when REPO == self');
-    if (!ENV.GITHUB_REPOSITORY)
+    if (!env.GITHUB_REPOSITORY)
       throw new Error('GITHUB_REPOSITORY must be specified when REPO == self');
-    const url = `https://x-access-token:${ENV.GITHUB_TOKEN}@github.com/${ENV.GITHUB_REPOSITORY}.git`
+    const url = `https://x-access-token:${env.GITHUB_TOKEN}@github.com/${env.GITHUB_REPOSITORY}.git`;
     const config: Config = {
       repo: url,
       branch,
@@ -192,7 +248,7 @@ const config: Config = (() => {
   const parsedUrl = gitUrlParse(repo);
 
   if (parsedUrl.protocol === 'ssh') {
-    if (!ENV.SSH_PRIVATE_KEY)
+    if (!env.SSH_PRIVATE_KEY)
       throw new Error('SSH_PRIVATE_KEY must be specified when REPO uses ssh');
     const config: Config = {
       repo,
@@ -202,64 +258,88 @@ const config: Config = (() => {
       skipEmptyCommits,
       mode: 'ssh',
       parsedUrl,
-      privateKey: ENV.SSH_PRIVATE_KEY,
-      knownHostsFile: ENV.KNOWN_HOSTS_FILE,
+      privateKey: env.SSH_PRIVATE_KEY,
+      knownHostsFile: env.KNOWN_HOSTS_FILE,
       message,
       tag,
     };
     return config;
   }
   throw new Error('Unsupported REPO URL');
-})();
+};
 
-const writeToProcess = (command: string, args: string[], opts: { env: { [id: string]: string | undefined }; data: string; }) => new Promise((resolve, reject) => {
-  const child = child_process.spawn(command, args, {
-    env: opts.env,
-    stdio: "pipe"
+const writeToProcess = (
+  command: string,
+  args: string[],
+  opts: {
+    env: { [id: string]: string | undefined };
+    data: string;
+    log: Console;
+  }
+) =>
+  new Promise<void>((resolve, reject) => {
+    const child = child_process.spawn(command, args, {
+      env: opts.env,
+      stdio: 'pipe',
+    });
+    child.stdin.setDefaultEncoding('utf-8');
+    child.stdin.write(opts.data);
+    child.stdin.end();
+    child.on('error', reject);
+    let stderr = '';
+    child.stdout.on('data', (data) => {
+      /* istanbul ignore next */
+      opts.log.log(data.toString());
+    });
+    child.stderr.on('data', (data) => {
+      stderr += data;
+      opts.log.error(data.toString());
+    });
+    child.on('close', (code) => {
+      /* istanbul ignore else */
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(stderr));
+      }
+    });
   });
-  child.stdin.setDefaultEncoding('utf-8');
-  child.stdin.write(opts.data);
-  child.stdin.end();
-  child.on('error', reject);
-  let stderr = '';
-  child.stdout.on('data', (data) => {
-    /* istanbul ignore next */
-    console.log(data.toString());
-  });
-  child.stderr.on('data', (data) => {
-    stderr += data;
-    console.error(data.toString());
-  });
-  child.on('close', (code) => {
-    /* istanbul ignore else */
-    if (code === 0) {
-      resolve();
-    } else {
-      reject(new Error(stderr));
-    }
-  });
-});
 
-(async () => {
+export const main = async ({
+  env = process.env,
+  log,
+}: {
+  env?: EnvironmentVariables;
+  log: Console;
+}) => {
+  const config = genConfig(env);
 
   // Calculate paths that use temp diractory
 
-  const TMP_PATH = await mkdtemp(path.join(tmpdir(), 'git-publish-subdir-action-'));
+  const TMP_PATH = await mkdtemp(
+    path.join(tmpdir(), 'git-publish-subdir-action-')
+  );
   const REPO_TEMP = path.join(TMP_PATH, 'repo');
   const SSH_AUTH_SOCK = path.join(TMP_PATH, 'ssh_agent.sock');
 
-  if (!ENV.GITHUB_EVENT_PATH)
-    throw new Error('Expected GITHUB_EVENT_PATH');
+  if (!env.GITHUB_EVENT_PATH) throw new Error('Expected GITHUB_EVENT_PATH');
 
-  const event: Event = JSON.parse((await readFile(ENV.GITHUB_EVENT_PATH)).toString());
+  const event: Event = JSON.parse(
+    (await readFile(env.GITHUB_EVENT_PATH)).toString()
+  );
 
-  const name = event.pusher?.name || ENV.GITHUB_ACTOR || 'Git Publish Subdirectory';
-  const email = event.pusher?.email || (ENV.GITHUB_ACTOR ? `${ENV.GITHUB_ACTOR}@users.noreply.github.com` : 'nobody@nowhere');
-  const tag = ENV.TAG
+  const name =
+    event.pusher?.name || env.GITHUB_ACTOR || 'Git Publish Subdirectory';
+  const email =
+    event.pusher?.email ||
+    (env.GITHUB_ACTOR
+      ? `${env.GITHUB_ACTOR}@users.noreply.github.com`
+      : 'nobody@nowhere');
+  const tag = env.TAG;
 
   // Set Git Config
-  await exec(`git config --global user.name "${name}"`);
-  await exec(`git config --global user.email "${email}"`);
+  await exec(`git config --global user.name "${name}"`, { log });
+  await exec(`git config --global user.email "${email}"`, { log });
 
   interface GitInformation {
     commitMessage: string;
@@ -274,7 +354,7 @@ const writeToProcess = (command: string, args: string[], opts: { env: { [id: str
     let dir = process.cwd();
     while (true) {
       const isGitRepo = await stat(path.join(dir, '.git'))
-        .then(s => s.isDirectory())
+        .then((s) => s.isDirectory())
         .catch(() => false);
       if (isGitRepo) {
         break;
@@ -282,7 +362,9 @@ const writeToProcess = (command: string, args: string[], opts: { env: { [id: str
       // We need to traverse up one
       const next = path.dirname(dir);
       if (next === dir) {
-        console.log(`##[info] Not running in git directory, unable to get information about source commit`);
+        log.log(
+          `##[info] Not running in git directory, unable to get information about source commit`
+        );
         return {
           commitMessage: '',
           sha: '',
@@ -293,14 +375,14 @@ const writeToProcess = (command: string, args: string[], opts: { env: { [id: str
     }
 
     // Get current sha of repo to use in commit message
-    const log = (await git.log({
+    const gitLog = await git.log({
       fs,
       depth: 1,
       dir,
-    }));
-    const commit = log.length > 0 ? log[0] : undefined;
+    });
+    const commit = gitLog.length > 0 ? gitLog[0] : undefined;
     if (!commit) {
-      console.log(`##[info] Unable to get information about HEAD commit`);
+      log.log(`##[info] Unable to get information about HEAD commit`);
       return {
         commitMessage: '',
         sha: '',
@@ -309,14 +391,14 @@ const writeToProcess = (command: string, args: string[], opts: { env: { [id: str
     return {
       commitMessage: commit.commit.message,
       sha: commit.oid,
-    }
-  }
+    };
+  };
 
   const gitInfo = await getGitInformation();
 
   // Environment to pass to children
-  const env = Object.assign({}, process.env, {
-    SSH_AUTH_SOCK
+  const childEnv = Object.assign({}, process.env, {
+    SSH_AUTH_SOCK,
   });
 
   if (config.mode === 'ssh') {
@@ -327,39 +409,43 @@ const writeToProcess = (command: string, args: string[], opts: { env: { [id: str
       known_hosts = KNOWN_HOSTS_GITHUB;
     }
     if (!known_hosts) {
-      console.warn(KNOWN_HOSTS_WARNING);
+      log.warn(KNOWN_HOSTS_WARNING);
     } else {
       await mkdir(SSH_FOLDER, { recursive: true });
       await copyFile(known_hosts, KNOWN_HOSTS_TARGET);
     }
 
     // Setup ssh-agent with private key
-    console.log(`Setting up ssh-agent on ${SSH_AUTH_SOCK}`);
-    const sshAgentMatch = SSH_AGENT_PID_EXTRACT.exec((await exec(`ssh-agent -a ${SSH_AUTH_SOCK}`, { env })).stdout);
+    log.log(`Setting up ssh-agent on ${SSH_AUTH_SOCK}`);
+    const sshAgentMatch = SSH_AGENT_PID_EXTRACT.exec(
+      (await exec(`ssh-agent -a ${SSH_AUTH_SOCK}`, { log, env: childEnv }))
+        .stdout
+    );
     /* istanbul ignore if */
-    if (!sshAgentMatch)
-      throw new Error('Unexpected output from ssh-agent');
-    env.SSH_AGENT_PID = sshAgentMatch[1];
-    console.log(`Adding private key to ssh-agent at ${SSH_AUTH_SOCK}`);
+    if (!sshAgentMatch) throw new Error('Unexpected output from ssh-agent');
+    childEnv.SSH_AGENT_PID = sshAgentMatch[1];
+    log.log(`Adding private key to ssh-agent at ${SSH_AUTH_SOCK}`);
     await writeToProcess('ssh-add', ['-'], {
       data: config.privateKey + '\n',
-      env
+      env: childEnv,
+      log,
     });
-    console.log(`Private key added`);
+    log.log(`Private key added`);
   }
 
   // Clone the target repo
   await exec(`git clone "${config.repo}" "${REPO_TEMP}"`, {
-    env
-  }).catch(err => {
+    log,
+    env: childEnv,
+  }).catch((err) => {
     const s = err.toString();
     /* istanbul ignore else */
     if (config.mode === 'ssh') {
       /* istanbul ignore else */
-      if (s.indexOf("Host key verification failed") !== -1) {
-        console.error(KNOWN_HOSTS_ERROR(config.parsedUrl.resource));
-      } else if (s.indexOf("Permission denied (publickey") !== -1) {
-        console.error(SSH_KEY_ERROR);
+      if (s.indexOf('Host key verification failed') !== -1) {
+        log.error(KNOWN_HOSTS_ERROR(config.parsedUrl.resource));
+      } else if (s.indexOf('Permission denied (publickey') !== -1) {
+        log.error(SSH_KEY_ERROR);
       }
     }
     throw err;
@@ -367,51 +453,81 @@ const writeToProcess = (command: string, args: string[], opts: { env: { [id: str
 
   if (!config.squashHistory) {
     // Fetch branch if it exists
-    await exec(`git fetch -u origin ${config.branch}:${config.branch}`, { env, cwd: REPO_TEMP }).catch(err => {
+    await exec(`git fetch -u origin ${config.branch}:${config.branch}`, {
+      log,
+      env: childEnv,
+      cwd: REPO_TEMP,
+    }).catch((err) => {
       const s = err.toString();
       /* istanbul ignore if */
-      if (s.indexOf('Couldn\'t find remote ref') === -1) {
-        console.error('##[warning] Failed to fetch target branch, probably doesn\'t exist')
-        console.error(err);
+      if (s.indexOf("Couldn't find remote ref") === -1) {
+        log.error(
+          "##[warning] Failed to fetch target branch, probably doesn't exist"
+        );
+        log.error(err);
       }
     });
 
     // Check if branch already exists
-    console.log(`##[info] Checking if branch ${config.branch} exists already`);
-    const branchCheck = await exec(`git branch --list "${config.branch}"`, { env, cwd: REPO_TEMP });
+    log.log(`##[info] Checking if branch ${config.branch} exists already`);
+    const branchCheck = await exec(`git branch --list "${config.branch}"`, {
+      log,
+      env: childEnv,
+      cwd: REPO_TEMP,
+    });
     if (branchCheck.stdout.trim() === '') {
       // Branch does not exist yet, let's check it out as an orphan
-      console.log(`##[info] ${config.branch} does not exist, creating as orphan`);
-      await exec(`git checkout --orphan "${config.branch}"`, { env, cwd: REPO_TEMP });
+      log.log(`##[info] ${config.branch} does not exist, creating as orphan`);
+      await exec(`git checkout --orphan "${config.branch}"`, {
+        log,
+        env: childEnv,
+        cwd: REPO_TEMP,
+      });
     } else {
-      await exec(`git checkout "${config.branch}"`, { env, cwd: REPO_TEMP });
+      await exec(`git checkout "${config.branch}"`, {
+        log,
+        env: childEnv,
+        cwd: REPO_TEMP,
+      });
     }
-
   } else {
     // Checkout a random branch so we can delete the target branch if it exists
-    console.log('Checking out temp branch');
-    await exec(`git checkout -b "${Math.random().toString(36).substring(2)}"`, { env, cwd: REPO_TEMP });
+    log.log('Checking out temp branch');
+    await exec(`git checkout -b "${Math.random().toString(36).substring(2)}"`, {
+      log,
+      env: childEnv,
+      cwd: REPO_TEMP,
+    });
     // Delete the target branch if it exists
-    await exec(`git branch -D "${config.branch}"`, { env, cwd: REPO_TEMP }).catch(err => { });
+    await exec(`git branch -D "${config.branch}"`, {
+      log,
+      env: childEnv,
+      cwd: REPO_TEMP,
+    }).catch((err) => {});
     // Checkout target branch as an orphan
-    await exec(`git checkout --orphan "${config.branch}"`, { env, cwd: REPO_TEMP });
-    console.log('Checked out orphan');
+    await exec(`git checkout --orphan "${config.branch}"`, {
+      log,
+      env: childEnv,
+      cwd: REPO_TEMP,
+    });
+    log.log('Checked out orphan');
   }
 
-  // Update contents of branch
-  console.log(`##[info] Updating branch ${config.branch}`);
-  await exec(`git rm -rf .`, { env, cwd: REPO_TEMP }).catch(err => { });
+  // // Update contents of branch
+  log.log(`##[info] Updating branch ${config.branch}`);
+  await exec(`git rm -rf .`, { log, env: childEnv, cwd: REPO_TEMP }).catch(
+    (err) => {}
+  );
   const folder = path.resolve(process.cwd(), config.folder);
-  console.log(`##[info] Copying all files from ${folder}`);
+  log.log(`##[info] Copying all files from ${folder}`);
   // TODO: replace this copy with a node implementation
-  await exec(`cp -rT ${folder}/ ./`, { env, cwd: REPO_TEMP });
-  await exec(`git add -A .`, { env, cwd: REPO_TEMP });
-  const message =
-    config.message
-      .replace(/\{target\-branch\}/g, config.branch)
-      .replace(/\{sha\}/g, gitInfo.sha.substr(0, 7))
-      .replace(/\{long\-sha\}/g, gitInfo.sha)
-      .replace(/\{msg\}/g, gitInfo.commitMessage);
+  await exec(`cp -rT ${folder}/ ./`, { log, env: childEnv, cwd: REPO_TEMP });
+  await exec(`git add -A .`, { log, env: childEnv, cwd: REPO_TEMP });
+  const message = config.message
+    .replace(/\{target\-branch\}/g, config.branch)
+    .replace(/\{sha\}/g, gitInfo.sha.substr(0, 7))
+    .replace(/\{long\-sha\}/g, gitInfo.sha)
+    .replace(/\{msg\}/g, gitInfo.commitMessage);
   await git.commit({
     fs,
     dir: REPO_TEMP,
@@ -419,7 +535,7 @@ const writeToProcess = (command: string, args: string[], opts: { env: { [id: str
     author: { email, name },
   });
   if (tag) {
-    console.log(`##[info] Tagging commit with ${tag}`)
+    log.log(`##[info] Tagging commit with ${tag}`);
     await git.tag({
       fs,
       dir: REPO_TEMP,
@@ -427,13 +543,13 @@ const writeToProcess = (command: string, args: string[], opts: { env: { [id: str
     });
   }
   if (config.skipEmptyCommits) {
-    console.log(`##[info] Checking whether contents have changed before pushing`);
+    log.log(`##[info] Checking whether contents have changed before pushing`);
     // Before we push, check whether it changed the tree,
     // and avoid pushing if not
     const head = await git.resolveRef({
       fs,
       dir: REPO_TEMP,
-      ref: 'HEAD'
+      ref: 'HEAD',
     });
     const currentCommit = await git.readCommit({
       fs,
@@ -447,24 +563,23 @@ const writeToProcess = (command: string, args: string[], opts: { env: { [id: str
         oid: currentCommit.commit.parent[0],
       });
       if (currentCommit.commit.tree === previousCommit.commit.tree) {
-        console.log(`##[info] Contents of target repo unchanged, exiting.`);
+        log.log(`##[info] Contents of target repo unchanged, exiting.`);
         return;
       }
     }
   }
-  console.log(`##[info] Pushing`);
+  log.log(`##[info] Pushing`);
   const forceArg = config.squashHistory ? '-f' : '';
   const tagsArg = tag ? '--tags' : '';
-  const push = await exec(`git push ${forceArg} origin "${config.branch}" ${tagsArg}`, { env, cwd: REPO_TEMP });
-  console.log(push.stdout);
-  console.log(`##[info] Deployment Successful`);
+  const push = await exec(
+    `git push ${forceArg} origin "${config.branch}" ${tagsArg}`,
+    { log, env: childEnv, cwd: REPO_TEMP }
+  );
+  log.log(push.stdout);
+  log.log(`##[info] Deployment Successful`);
 
   if (config.mode === 'ssh') {
-    console.log(`##[info] Killing ssh-agent`);
-    await exec(`ssh-agent -k`, { env });
+    log.log(`##[info] Killing ssh-agent`);
+    await exec(`ssh-agent -k`, { log, env: childEnv });
   }
-
-})().catch(err => {
-  console.error(err);
-  process.exit(1);
-});
+};
