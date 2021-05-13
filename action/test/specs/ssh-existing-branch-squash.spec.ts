@@ -11,23 +11,23 @@ it('Deploy to a existing branch over ssh, and squash commits', async () => {
 
   // Create empty repo
   await util.mkdir(REPO_DIR);
-  await util.execWithOutput('git init --bare', { cwd: REPO_DIR });
+  await util.wrappedExec('git init --bare', { cwd: REPO_DIR });
 
   // Clone repo, and create an initial commit
   await util.mkdir(WORK_DIR);
-  await util.execWithOutput(`git clone "${REPO_DIR}" clone`, { cwd: WORK_DIR });
-  await util.execWithOutput(`git config user.name "Test User"`, { cwd: REPO_CLONE_DIR });
-  await util.execWithOutput(`git config user.email "test@example.com"`, { cwd: REPO_CLONE_DIR });
+  await util.wrappedExec(`git clone "${REPO_DIR}" clone`, { cwd: WORK_DIR });
+  await util.wrappedExec(`git config user.name "Test User"`, { cwd: REPO_CLONE_DIR });
+  await util.wrappedExec(`git config user.email "test@example.com"`, { cwd: REPO_CLONE_DIR });
   // Create first commit
   await util.writeFile(path.join(REPO_CLONE_DIR, 'initial'), 'foobar');
-  await util.execWithOutput(`git add -A .`, { cwd: REPO_CLONE_DIR });
-  await util.execWithOutput(`git commit -m initial`, { cwd: REPO_CLONE_DIR });
-  await util.execWithOutput(`git push origin master`, { cwd: REPO_CLONE_DIR });
+  await util.wrappedExec(`git add -A .`, { cwd: REPO_CLONE_DIR });
+  await util.wrappedExec(`git commit -m initial`, { cwd: REPO_CLONE_DIR });
+  await util.wrappedExec(`git push origin master`, { cwd: REPO_CLONE_DIR });
   // Create second commit
   await util.writeFile(path.join(REPO_CLONE_DIR, 'secondary'), 'foobar');
-  await util.execWithOutput(`git add -A .`, { cwd: REPO_CLONE_DIR });
-  await util.execWithOutput(`git commit -m secondary`, { cwd: REPO_CLONE_DIR });
-  await util.execWithOutput(`git push origin master`, { cwd: REPO_CLONE_DIR });
+  await util.wrappedExec(`git add -A .`, { cwd: REPO_CLONE_DIR });
+  await util.wrappedExec(`git commit -m secondary`, { cwd: REPO_CLONE_DIR });
+  await util.wrappedExec(`git push origin master`, { cwd: REPO_CLONE_DIR });
 
   // Create dummy data
   await util.mkdir(DATA_DIR);

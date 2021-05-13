@@ -20,7 +20,7 @@ that the public key has been added to the target repo
 `;
 
 describe('Misconfigurations', () => {
-  it('missing-known-hosts', async () => {
+  xit('missing-known-hosts', async () => {
 
     const testname = `misconfiguration-missing-known-hosts`;
     const dataDir = path.join(util.DATA_DIR, testname);

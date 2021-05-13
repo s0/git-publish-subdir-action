@@ -11,7 +11,7 @@ it('Test custom tags', async () => {
 
   // Create empty repo
   await util.mkdir(REPO_DIR);
-  await util.execWithOutput('git init --bare', { cwd: REPO_DIR });
+  await util.wrappedExec('git init --bare', { cwd: REPO_DIR });
 
   // Create dummy data
   await util.mkdir(DATA_DIR);

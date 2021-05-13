@@ -4,7 +4,14 @@ import * as util from '../util';
 
 const DATA_DIR = path.join(util.DATA_DIR, 'self');
 
-it('Deploy to another branch on self repo', async () => {
+const RUNNING_IN_GITHUB = !!process.env.GITHUB_SELF_TEST_REPO && !!process.env.GITHUB_SELF_TEST_TOKEN;
+
+/**
+ * Unit test to only run in GitHub environment
+ */
+const itGithubOnly = RUNNING_IN_GITHUB ? it : xit;
+
+itGithubOnly('Deploy to another branch on self repo', async () => {
 
   const repo = process.env.GITHUB_SELF_TEST_REPO;
   if (!repo)
