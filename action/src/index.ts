@@ -24,9 +24,9 @@ export type Console = {
 export const exec = async (cmd: string, opts: {
   env?: any,
   cwd?: string,
-  console: Console
+  log: Console
 }) => {
-  const {console: log} = opts;
+  const {log} = opts;
   const env = opts?.env || {};
   const ps = child_process.spawn(
     'bash',
@@ -209,30 +209,30 @@ export interface Event {
 }
 
 const genConfig: (
-  ENV?: EnvironmentVariables
-) => Config = (ENV = process.env) => {
-  if (!ENV.REPO)
+  env?: EnvironmentVariables
+) => Config = (env = process.env) => {
+  if (!env.REPO)
     throw new Error('REPO must be specified');
-  if (!ENV.BRANCH)
+  if (!env.BRANCH)
     throw new Error('BRANCH must be specified');
-  if (!ENV.FOLDER)
+  if (!env.FOLDER)
     throw new Error('FOLDER must be specified');
 
-  const repo = ENV.REPO;
-  const branch = ENV.BRANCH;
-  const folder = ENV.FOLDER;
-  const squashHistory = ENV.SQUASH_HISTORY === 'true';
-  const skipEmptyCommits = ENV.SKIP_EMPTY_COMMITS === 'true';
-  const message = ENV.MESSAGE || DEFAULT_MESSAGE;
-  const tag = ENV.TAG;
+  const repo = env.REPO;
+  const branch = env.BRANCH;
+  const folder = env.FOLDER;
+  const squashHistory = env.SQUASH_HISTORY === 'true';
+  const skipEmptyCommits = env.SKIP_EMPTY_COMMITS === 'true';
+  const message = env.MESSAGE || DEFAULT_MESSAGE;
+  const tag = env.TAG;
 
   // Determine the type of URL
   if (repo === REPO_SELF) {
-    if (!ENV.GITHUB_TOKEN)
+    if (!env.GITHUB_TOKEN)
       throw new Error('GITHUB_TOKEN must be specified when REPO == self');
-    if (!ENV.GITHUB_REPOSITORY)
+    if (!env.GITHUB_REPOSITORY)
       throw new Error('GITHUB_REPOSITORY must be specified when REPO == self');
-    const url = `https://x-access-token:${ENV.GITHUB_TOKEN}@github.com/${ENV.GITHUB_REPOSITORY}.git`
+    const url = `https://x-access-token:${env.GITHUB_TOKEN}@github.com/${env.GITHUB_REPOSITORY}.git`
     const config: Config = {
       repo: url,
       branch,
@@ -248,7 +248,7 @@ const genConfig: (
   const parsedUrl = gitUrlParse(repo);
 
   if (parsedUrl.protocol === 'ssh') {
-    if (!ENV.SSH_PRIVATE_KEY)
+    if (!env.SSH_PRIVATE_KEY)
       throw new Error('SSH_PRIVATE_KEY must be specified when REPO uses ssh');
     const config: Config = {
       repo,
@@ -258,8 +258,8 @@ const genConfig: (
       skipEmptyCommits,
       mode: 'ssh',
       parsedUrl,
-      privateKey: ENV.SSH_PRIVATE_KEY,
-      knownHostsFile: ENV.KNOWN_HOSTS_FILE,
+      privateKey: env.SSH_PRIVATE_KEY,
+      knownHostsFile: env.KNOWN_HOSTS_FILE,
       message,
       tag,
     };
@@ -304,9 +304,9 @@ const writeToProcess = (
   });
 });
 
-export const main = async ({ env: ENV = process.env, console }: {env?: EnvironmentVariables, console: Console }) => {
+export const main = async ({ env = process.env, log }: {env?: EnvironmentVariables, log: Console }) => {
 
-  const config = genConfig(ENV);
+  const config = genConfig(env);
 
   // Calculate paths that use temp diractory
 
@@ -314,18 +314,18 @@ export const main = async ({ env: ENV = process.env, console }: {env?: Environme
   const REPO_TEMP = path.join(TMP_PATH, 'repo');
   const SSH_AUTH_SOCK = path.join(TMP_PATH, 'ssh_agent.sock');
 
-  if (!ENV.GITHUB_EVENT_PATH)
+  if (!env.GITHUB_EVENT_PATH)
     throw new Error('Expected GITHUB_EVENT_PATH');
 
-  const event: Event = JSON.parse((await readFile(ENV.GITHUB_EVENT_PATH)).toString());
+  const event: Event = JSON.parse((await readFile(env.GITHUB_EVENT_PATH)).toString());
 
-  const name = event.pusher?.name || ENV.GITHUB_ACTOR || 'Git Publish Subdirectory';
-  const email = event.pusher?.email || (ENV.GITHUB_ACTOR ? `${ENV.GITHUB_ACTOR}@users.noreply.github.com` : 'nobody@nowhere');
-  const tag = ENV.TAG
+  const name = event.pusher?.name || env.GITHUB_ACTOR || 'Git Publish Subdirectory';
+  const email = event.pusher?.email || (env.GITHUB_ACTOR ? `${env.GITHUB_ACTOR}@users.noreply.github.com` : 'nobody@nowhere');
+  const tag = env.TAG
 
   // Set Git Config
-  await exec(`git config --global user.name "${name}"`, { console });
-  await exec(`git config --global user.email "${email}"`, { console });
+  await exec(`git config --global user.name "${name}"`, { log });
+  await exec(`git config --global user.email "${email}"`, { log });
 
   interface GitInformation {
     commitMessage: string;
@@ -348,7 +348,7 @@ export const main = async ({ env: ENV = process.env, console }: {env?: Environme
       // We need to traverse up one
       const next = path.dirname(dir);
       if (next === dir) {
-        console.log(`##[info] Not running in git directory, unable to get information about source commit`);
+        log.log(`##[info] Not running in git directory, unable to get information about source commit`);
         return {
           commitMessage: '',
           sha: '',
@@ -359,14 +359,14 @@ export const main = async ({ env: ENV = process.env, console }: {env?: Environme
     }
 
     // Get current sha of repo to use in commit message
-    const log = (await git.log({
+    const gitLog = (await git.log({
       fs,
       depth: 1,
       dir,
     }));
-    const commit = log.length > 0 ? log[0] : undefined;
+    const commit = gitLog.length > 0 ? gitLog[0] : undefined;
     if (!commit) {
-      console.log(`##[info] Unable to get information about HEAD commit`);
+      log.log(`##[info] Unable to get information about HEAD commit`);
       return {
         commitMessage: '',
         sha: '',
@@ -381,7 +381,7 @@ export const main = async ({ env: ENV = process.env, console }: {env?: Environme
   const gitInfo = await getGitInformation();
 
   // Environment to pass to children
-  const env = Object.assign({}, process.env, {
+  const childEnv = Object.assign({}, process.env, {
     SSH_AUTH_SOCK
   });
 
@@ -393,41 +393,41 @@ export const main = async ({ env: ENV = process.env, console }: {env?: Environme
       known_hosts = KNOWN_HOSTS_GITHUB;
     }
     if (!known_hosts) {
-      console.warn(KNOWN_HOSTS_WARNING);
+      log.warn(KNOWN_HOSTS_WARNING);
     } else {
       await mkdir(SSH_FOLDER, { recursive: true });
       await copyFile(known_hosts, KNOWN_HOSTS_TARGET);
     }
 
     // Setup ssh-agent with private key
-    console.log(`Setting up ssh-agent on ${SSH_AUTH_SOCK}`);
-    const sshAgentMatch = SSH_AGENT_PID_EXTRACT.exec((await exec(`ssh-agent -a ${SSH_AUTH_SOCK}`, { console, env })).stdout);
+    log.log(`Setting up ssh-agent on ${SSH_AUTH_SOCK}`);
+    const sshAgentMatch = SSH_AGENT_PID_EXTRACT.exec((await exec(`ssh-agent -a ${SSH_AUTH_SOCK}`, { log, env: childEnv })).stdout);
     /* istanbul ignore if */
     if (!sshAgentMatch)
       throw new Error('Unexpected output from ssh-agent');
-    env.SSH_AGENT_PID = sshAgentMatch[1];
-    console.log(`Adding private key to ssh-agent at ${SSH_AUTH_SOCK}`);
+    childEnv.SSH_AGENT_PID = sshAgentMatch[1];
+    log.log(`Adding private key to ssh-agent at ${SSH_AUTH_SOCK}`);
     await writeToProcess('ssh-add', ['-'], {
       data: config.privateKey + '\n',
-      env,
-      log: console
+      env: childEnv,
+      log
     });
-    console.log(`Private key added`);
+    log.log(`Private key added`);
   }
 
   // Clone the target repo
   await exec(`git clone "${config.repo}" "${REPO_TEMP}"`, {
-    console,
-    env
+    log,
+    env: childEnv
   }).catch(err => {
     const s = err.toString();
     /* istanbul ignore else */
     if (config.mode === 'ssh') {
       /* istanbul ignore else */
       if (s.indexOf("Host key verification failed") !== -1) {
-        console.error(KNOWN_HOSTS_ERROR(config.parsedUrl.resource));
+        log.error(KNOWN_HOSTS_ERROR(config.parsedUrl.resource));
       } else if (s.indexOf("Permission denied (publickey") !== -1) {
-        console.error(SSH_KEY_ERROR);
+        log.error(SSH_KEY_ERROR);
       }
     }
     throw err;
@@ -435,45 +435,45 @@ export const main = async ({ env: ENV = process.env, console }: {env?: Environme
 
   if (!config.squashHistory) {
     // Fetch branch if it exists
-    await exec(`git fetch -u origin ${config.branch}:${config.branch}`, { console, env, cwd: REPO_TEMP }).catch(err => {
+    await exec(`git fetch -u origin ${config.branch}:${config.branch}`, { log, env: childEnv, cwd: REPO_TEMP }).catch(err => {
       const s = err.toString();
       /* istanbul ignore if */
       if (s.indexOf('Couldn\'t find remote ref') === -1) {
-        console.error('##[warning] Failed to fetch target branch, probably doesn\'t exist')
-        console.error(err);
+        log.error('##[warning] Failed to fetch target branch, probably doesn\'t exist')
+        log.error(err);
       }
     });
 
     // Check if branch already exists
-    console.log(`##[info] Checking if branch ${config.branch} exists already`);
-    const branchCheck = await exec(`git branch --list "${config.branch}"`, { console, env, cwd: REPO_TEMP });
+    log.log(`##[info] Checking if branch ${config.branch} exists already`);
+    const branchCheck = await exec(`git branch --list "${config.branch}"`, { log, env: childEnv, cwd: REPO_TEMP });
     if (branchCheck.stdout.trim() === '') {
       // Branch does not exist yet, let's check it out as an orphan
-      console.log(`##[info] ${config.branch} does not exist, creating as orphan`);
-      await exec(`git checkout --orphan "${config.branch}"`, { console, env, cwd: REPO_TEMP });
+      log.log(`##[info] ${config.branch} does not exist, creating as orphan`);
+      await exec(`git checkout --orphan "${config.branch}"`, { log, env: childEnv, cwd: REPO_TEMP });
     } else {
-      await exec(`git checkout "${config.branch}"`, { console, env, cwd: REPO_TEMP });
+      await exec(`git checkout "${config.branch}"`, { log, env: childEnv, cwd: REPO_TEMP });
     }
 
   } else {
     // Checkout a random branch so we can delete the target branch if it exists
-    console.log('Checking out temp branch');
-    await exec(`git checkout -b "${Math.random().toString(36).substring(2)}"`, { console, env, cwd: REPO_TEMP });
+    log.log('Checking out temp branch');
+    await exec(`git checkout -b "${Math.random().toString(36).substring(2)}"`, { log, env: childEnv, cwd: REPO_TEMP });
     // Delete the target branch if it exists
-    await exec(`git branch -D "${config.branch}"`, { console, env, cwd: REPO_TEMP }).catch(err => { });
+    await exec(`git branch -D "${config.branch}"`, { log, env: childEnv, cwd: REPO_TEMP }).catch(err => { });
     // Checkout target branch as an orphan
-    await exec(`git checkout --orphan "${config.branch}"`, { console, env, cwd: REPO_TEMP });
-    console.log('Checked out orphan');
+    await exec(`git checkout --orphan "${config.branch}"`, { log, env: childEnv, cwd: REPO_TEMP });
+    log.log('Checked out orphan');
   }
 
   // // Update contents of branch
-  console.log(`##[info] Updating branch ${config.branch}`);
-  await exec(`git rm -rf .`, { console, env, cwd: REPO_TEMP }).catch(err => { });
+  log.log(`##[info] Updating branch ${config.branch}`);
+  await exec(`git rm -rf .`, { log, env: childEnv, cwd: REPO_TEMP }).catch(err => { });
   const folder = path.resolve(process.cwd(), config.folder);
-  console.log(`##[info] Copying all files from ${folder}`);
+  log.log(`##[info] Copying all files from ${folder}`);
   // TODO: replace this copy with a node implementation
-  await exec(`cp -rT ${folder}/ ./`, { console, env, cwd: REPO_TEMP });
-  await exec(`git add -A .`, { console, env, cwd: REPO_TEMP });
+  await exec(`cp -rT ${folder}/ ./`, { log, env: childEnv, cwd: REPO_TEMP });
+  await exec(`git add -A .`, { log, env: childEnv, cwd: REPO_TEMP });
   const message =
     config.message
       .replace(/\{target\-branch\}/g, config.branch)
@@ -487,7 +487,7 @@ export const main = async ({ env: ENV = process.env, console }: {env?: Environme
     author: { email, name },
   });
   if (tag) {
-    console.log(`##[info] Tagging commit with ${tag}`)
+    log.log(`##[info] Tagging commit with ${tag}`)
     await git.tag({
       fs,
       dir: REPO_TEMP,
@@ -495,7 +495,7 @@ export const main = async ({ env: ENV = process.env, console }: {env?: Environme
     });
   }
   if (config.skipEmptyCommits) {
-    console.log(`##[info] Checking whether contents have changed before pushing`);
+    log.log(`##[info] Checking whether contents have changed before pushing`);
     // Before we push, check whether it changed the tree,
     // and avoid pushing if not
     const head = await git.resolveRef({
@@ -515,21 +515,21 @@ export const main = async ({ env: ENV = process.env, console }: {env?: Environme
         oid: currentCommit.commit.parent[0],
       });
       if (currentCommit.commit.tree === previousCommit.commit.tree) {
-        console.log(`##[info] Contents of target repo unchanged, exiting.`);
+        log.log(`##[info] Contents of target repo unchanged, exiting.`);
         return;
       }
     }
   }
-  console.log(`##[info] Pushing`);
+  log.log(`##[info] Pushing`);
   const forceArg = config.squashHistory ? '-f' : '';
   const tagsArg = tag ? '--tags' : '';
-  const push = await exec(`git push ${forceArg} origin "${config.branch}" ${tagsArg}`, { console, env, cwd: REPO_TEMP });
-  console.log(push.stdout);
-  console.log(`##[info] Deployment Successful`);
+  const push = await exec(`git push ${forceArg} origin "${config.branch}" ${tagsArg}`, { log, env: childEnv, cwd: REPO_TEMP });
+  log.log(push.stdout);
+  log.log(`##[info] Deployment Successful`);
 
   if (config.mode === 'ssh') {
-    console.log(`##[info] Killing ssh-agent`);
-    await exec(`ssh-agent -k`, { console, env });
+    log.log(`##[info] Killing ssh-agent`);
+    await exec(`ssh-agent -k`, { log, env: childEnv });
   }
 
 };

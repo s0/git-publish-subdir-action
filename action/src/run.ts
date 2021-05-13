@@ -1,7 +1,7 @@
 import { main } from './';
 
 main({
-  console,
+  log: console,
   env: process.env,
 }).catch(err => {
   console.error(err);

@@ -183,7 +183,7 @@ export const runWithGithubEnv = async (
 
   return await main({
     env: finalEnv,
-    console: log
+    log: log
   }).then(async result => {
     return result;
   }).catch(async err => {
