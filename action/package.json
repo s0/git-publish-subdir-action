@@ -7,7 +7,8 @@
     "lint:fix": "prettier -w src/**/* test/**/*.ts",
     "start": "node lib",
     "test-init": "jest --projects test/jest.config.js --runInBand --verbose",
-    "test-run": "nyc ts-node --transpile-only src"
+    "test-run": "nyc ts-node --transpile-only src",
+    "test": "./test/bin/run-tests.sh --colors"
   },
   "devDependencies": {
     "@types/git-url-parse": "^9.0.0",
