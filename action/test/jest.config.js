@@ -6,6 +6,9 @@ module.exports = {
   testMatch: [
     '<rootDir>/test/**/*.spec.ts',
   ],
+  collectCoverageFrom: [
+    '<rootDir>/src/**/*.ts'
+  ],
   setupFilesAfterEnv: [
     '<rootDir>/test/jest-global-setup-hooks.ts'
   ],

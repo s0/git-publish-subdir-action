@@ -1,3 +1,5 @@
+/* istanbul ignore file - this file is used purely as an entry-point */
+
 import { main } from './';
 
 main({
