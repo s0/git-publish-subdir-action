@@ -1611,6 +1611,7 @@ function mix(from, into) {
 
 "use strict";
 
+/* istanbul ignore file - this file is used purely as an entry-point */
 Object.defineProperty(exports, "__esModule", { value: true });
 var _1 = __webpack_require__(593);
 _1.main({
@@ -8035,7 +8036,7 @@ exports.exec = function (cmd, opts) { return __awaiter(void 0, void 0, void 0, f
         });
         output = {
             stderr: '',
-            stdout: ''
+            stdout: '',
         };
         // We won't be providing any input to command
         ps.stdin.end();
@@ -8047,17 +8048,19 @@ exports.exec = function (cmd, opts) { return __awaiter(void 0, void 0, void 0, f
             output.stderr += data;
             log.error(data.toString());
         });
-        return [2 /*return*/, new Promise(function (resolve, reject) { return ps.on('close', function (code) {
-                if (code !== 0) {
-                    reject(new Error('Process exited with code: ' + code + ':\n' + output.stderr));
-                }
-                else {
-                    resolve(output);
-                }
-            }); })];
+        return [2 /*return*/, new Promise(function (resolve, reject) {
+                return ps.on('close', function (code) {
+                    if (code !== 0) {
+                        reject(new Error('Process exited with code: ' + code + ':\n' + output.stderr));
+                    }
+                    else {
+                        resolve(output);
+                    }
+                });
+            })];
     });
 }); };
-var DEFAULT_MESSAGE = "Update {target-branch} to output generated at {sha}";
+var DEFAULT_MESSAGE = 'Update {target-branch} to output generated at {sha}';
 // Error messages
 var KNOWN_HOSTS_WARNING = "\n##[warning] KNOWN_HOSTS_FILE not set\nThis will probably mean that host verification will fail later on\n";
 var KNOWN_HOSTS_ERROR = function (host) { return "\n##[error] Host key verification failed!\nThis is probably because you forgot to supply a value for KNOWN_HOSTS_FILE\nor the file is invalid or doesn't correctly verify the host " + host + "\n"; };
@@ -8125,34 +8128,36 @@ var genConfig = function (env) {
     }
     throw new Error('Unsupported REPO URL');
 };
-var writeToProcess = function (command, args, opts) { return new Promise(function (resolve, reject) {
-    var child = child_process.spawn(command, args, {
-        env: opts.env,
-        stdio: "pipe"
+var writeToProcess = function (command, args, opts) {
+    return new Promise(function (resolve, reject) {
+        var child = child_process.spawn(command, args, {
+            env: opts.env,
+            stdio: 'pipe',
+        });
+        child.stdin.setDefaultEncoding('utf-8');
+        child.stdin.write(opts.data);
+        child.stdin.end();
+        child.on('error', reject);
+        var stderr = '';
+        child.stdout.on('data', function (data) {
+            /* istanbul ignore next */
+            opts.log.log(data.toString());
+        });
+        child.stderr.on('data', function (data) {
+            stderr += data;
+            opts.log.error(data.toString());
+        });
+        child.on('close', function (code) {
+            /* istanbul ignore else */
+            if (code === 0) {
+                resolve();
+            }
+            else {
+                reject(new Error(stderr));
+            }
+        });
     });
-    child.stdin.setDefaultEncoding('utf-8');
-    child.stdin.write(opts.data);
-    child.stdin.end();
-    child.on('error', reject);
-    var stderr = '';
-    child.stdout.on('data', function (data) {
-        /* istanbul ignore next */
-        opts.log.log(data.toString());
-    });
-    child.stderr.on('data', function (data) {
-        stderr += data;
-        opts.log.error(data.toString());
-    });
-    child.on('close', function (code) {
-        /* istanbul ignore else */
-        if (code === 0) {
-            resolve();
-        }
-        else {
-            reject(new Error(stderr));
-        }
-    });
-}); };
+};
 exports.main = function (_a) {
     var _b = _a.env, env = _b === void 0 ? process.env : _b, log = _a.log;
     return __awaiter(void 0, void 0, void 0, function () {
@@ -8174,7 +8179,10 @@ exports.main = function (_a) {
                 case 2:
                     event = _d.apply(_c, [(_j.sent()).toString()]);
                     name = ((_g = event.pusher) === null || _g === void 0 ? void 0 : _g.name) || env.GITHUB_ACTOR || 'Git Publish Subdirectory';
-                    email = ((_h = event.pusher) === null || _h === void 0 ? void 0 : _h.email) || (env.GITHUB_ACTOR ? env.GITHUB_ACTOR + "@users.noreply.github.com" : 'nobody@nowhere');
+                    email = ((_h = event.pusher) === null || _h === void 0 ? void 0 : _h.email) ||
+                        (env.GITHUB_ACTOR
+                            ? env.GITHUB_ACTOR + "@users.noreply.github.com"
+                            : 'nobody@nowhere');
                     tag = env.TAG;
                     // Set Git Config
                     return [4 /*yield*/, exports.exec("git config --global user.name \"" + name + "\"", { log: log })];
@@ -8219,7 +8227,7 @@ exports.main = function (_a) {
                                         dir: dir,
                                     })];
                                 case 4:
-                                    gitLog = (_a.sent());
+                                    gitLog = _a.sent();
                                     commit = gitLog.length > 0 ? gitLog[0] : undefined;
                                     if (!commit) {
                                         log.log("##[info] Unable to get information about HEAD commit");
@@ -8239,7 +8247,7 @@ exports.main = function (_a) {
                 case 5:
                     gitInfo = _j.sent();
                     childEnv = Object.assign({}, process.env, {
-                        SSH_AUTH_SOCK: SSH_AUTH_SOCK
+                        SSH_AUTH_SOCK: SSH_AUTH_SOCK,
                     });
                     if (!(config.mode === 'ssh')) return [3 /*break*/, 12];
                     known_hosts = config.knownHostsFile;
@@ -8263,7 +8271,8 @@ exports.main = function (_a) {
                     _f = (_e = SSH_AGENT_PID_EXTRACT).exec;
                     return [4 /*yield*/, exports.exec("ssh-agent -a " + SSH_AUTH_SOCK, { log: log, env: childEnv })];
                 case 10:
-                    sshAgentMatch = _f.apply(_e, [(_j.sent()).stdout]);
+                    sshAgentMatch = _f.apply(_e, [(_j.sent())
+                            .stdout]);
                     /* istanbul ignore if */
                     if (!sshAgentMatch)
                         throw new Error('Unexpected output from ssh-agent');
@@ -8272,7 +8281,7 @@ exports.main = function (_a) {
                     return [4 /*yield*/, writeToProcess('ssh-add', ['-'], {
                             data: config.privateKey + '\n',
                             env: childEnv,
-                            log: log
+                            log: log,
                         })];
                 case 11:
                     _j.sent();
@@ -8282,16 +8291,16 @@ exports.main = function (_a) {
                 // Clone the target repo
                 return [4 /*yield*/, exports.exec("git clone \"" + config.repo + "\" \"" + REPO_TEMP + "\"", {
                         log: log,
-                        env: childEnv
+                        env: childEnv,
                     }).catch(function (err) {
                         var s = err.toString();
                         /* istanbul ignore else */
                         if (config.mode === 'ssh') {
                             /* istanbul ignore else */
-                            if (s.indexOf("Host key verification failed") !== -1) {
+                            if (s.indexOf('Host key verification failed') !== -1) {
                                 log.error(KNOWN_HOSTS_ERROR(config.parsedUrl.resource));
                             }
-                            else if (s.indexOf("Permission denied (publickey") !== -1) {
+                            else if (s.indexOf('Permission denied (publickey') !== -1) {
                                 log.error(SSH_KEY_ERROR);
                             }
                         }
@@ -8302,11 +8311,15 @@ exports.main = function (_a) {
                     _j.sent();
                     if (!!config.squashHistory) return [3 /*break*/, 20];
                     // Fetch branch if it exists
-                    return [4 /*yield*/, exports.exec("git fetch -u origin " + config.branch + ":" + config.branch, { log: log, env: childEnv, cwd: REPO_TEMP }).catch(function (err) {
+                    return [4 /*yield*/, exports.exec("git fetch -u origin " + config.branch + ":" + config.branch, {
+                            log: log,
+                            env: childEnv,
+                            cwd: REPO_TEMP,
+                        }).catch(function (err) {
                             var s = err.toString();
                             /* istanbul ignore if */
-                            if (s.indexOf('Couldn\'t find remote ref') === -1) {
-                                log.error('##[warning] Failed to fetch target branch, probably doesn\'t exist');
+                            if (s.indexOf("Couldn't find remote ref") === -1) {
+                                log.error("##[warning] Failed to fetch target branch, probably doesn't exist");
                                 log.error(err);
                             }
                         })];
@@ -8315,17 +8328,29 @@ exports.main = function (_a) {
                     _j.sent();
                     // Check if branch already exists
                     log.log("##[info] Checking if branch " + config.branch + " exists already");
-                    return [4 /*yield*/, exports.exec("git branch --list \"" + config.branch + "\"", { log: log, env: childEnv, cwd: REPO_TEMP })];
+                    return [4 /*yield*/, exports.exec("git branch --list \"" + config.branch + "\"", {
+                            log: log,
+                            env: childEnv,
+                            cwd: REPO_TEMP,
+                        })];
                 case 15:
                     branchCheck = _j.sent();
                     if (!(branchCheck.stdout.trim() === '')) return [3 /*break*/, 17];
                     // Branch does not exist yet, let's check it out as an orphan
                     log.log("##[info] " + config.branch + " does not exist, creating as orphan");
-                    return [4 /*yield*/, exports.exec("git checkout --orphan \"" + config.branch + "\"", { log: log, env: childEnv, cwd: REPO_TEMP })];
+                    return [4 /*yield*/, exports.exec("git checkout --orphan \"" + config.branch + "\"", {
+                            log: log,
+                            env: childEnv,
+                            cwd: REPO_TEMP,
+                        })];
                 case 16:
                     _j.sent();
                     return [3 /*break*/, 19];
-                case 17: return [4 /*yield*/, exports.exec("git checkout \"" + config.branch + "\"", { log: log, env: childEnv, cwd: REPO_TEMP })];
+                case 17: return [4 /*yield*/, exports.exec("git checkout \"" + config.branch + "\"", {
+                        log: log,
+                        env: childEnv,
+                        cwd: REPO_TEMP,
+                    })];
                 case 18:
                     _j.sent();
                     _j.label = 19;
@@ -8333,16 +8358,28 @@ exports.main = function (_a) {
                 case 20:
                     // Checkout a random branch so we can delete the target branch if it exists
                     log.log('Checking out temp branch');
-                    return [4 /*yield*/, exports.exec("git checkout -b \"" + Math.random().toString(36).substring(2) + "\"", { log: log, env: childEnv, cwd: REPO_TEMP })];
+                    return [4 /*yield*/, exports.exec("git checkout -b \"" + Math.random().toString(36).substring(2) + "\"", {
+                            log: log,
+                            env: childEnv,
+                            cwd: REPO_TEMP,
+                        })];
                 case 21:
                     _j.sent();
                     // Delete the target branch if it exists
-                    return [4 /*yield*/, exports.exec("git branch -D \"" + config.branch + "\"", { log: log, env: childEnv, cwd: REPO_TEMP }).catch(function (err) { })];
+                    return [4 /*yield*/, exports.exec("git branch -D \"" + config.branch + "\"", {
+                            log: log,
+                            env: childEnv,
+                            cwd: REPO_TEMP,
+                        }).catch(function (err) { })];
                 case 22:
                     // Delete the target branch if it exists
                     _j.sent();
                     // Checkout target branch as an orphan
-                    return [4 /*yield*/, exports.exec("git checkout --orphan \"" + config.branch + "\"", { log: log, env: childEnv, cwd: REPO_TEMP })];
+                    return [4 /*yield*/, exports.exec("git checkout --orphan \"" + config.branch + "\"", {
+                            log: log,
+                            env: childEnv,
+                            cwd: REPO_TEMP,
+                        })];
                 case 23:
                     // Checkout target branch as an orphan
                     _j.sent();
@@ -8393,7 +8430,7 @@ exports.main = function (_a) {
                     return [4 /*yield*/, isomorphic_git_1.default.resolveRef({
                             fs: fs,
                             dir: REPO_TEMP,
-                            ref: 'HEAD'
+                            ref: 'HEAD',
                         })];
                 case 31:
                     head = _j.sent();
