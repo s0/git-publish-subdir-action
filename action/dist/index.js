@@ -19,7 +19,13 @@ module.exports =
 /******/ 		};
 /******/
 /******/ 		// Execute the module function
-/******/ 		modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/ 		var threw = true;
+/******/ 		try {
+/******/ 			modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/ 			threw = false;
+/******/ 		} finally {
+/******/ 			if(threw) delete installedModules[moduleId];
+/******/ 		}
 /******/
 /******/ 		// Flag the module as loaded
 /******/ 		module.l = true;
@@ -11961,7 +11967,7 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
     var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
     __setModuleDefault(result, mod);
     return result;
 };
@@ -11987,7 +11993,7 @@ const unlink = util_1.promisify(fs.unlink);
 /**
  * Custom wrapper around the child_process module
  */
-exports.exec = async (cmd, opts) => {
+const exec = async (cmd, opts) => {
     const { log } = opts;
     const env = (opts === null || opts === void 0 ? void 0 : opts.env) || {};
     const ps = child_process.spawn('bash', ['-c', cmd], {
@@ -12021,6 +12027,7 @@ exports.exec = async (cmd, opts) => {
         }
     }));
 };
+exports.exec = exec;
 const DEFAULT_MESSAGE = 'Update {target-branch} to output generated at {sha}';
 // Error messages
 const KNOWN_HOSTS_WARNING = `
@@ -12131,7 +12138,7 @@ const writeToProcess = (command, args, opts) => new Promise((resolve, reject) =>
         }
     });
 });
-exports.main = async ({ env = process.env, log, }) => {
+const main = async ({ env = process.env, log, }) => {
     var _a, _b;
     const config = genConfig(env);
     // Calculate paths that use temp diractory
@@ -12401,6 +12408,7 @@ exports.main = async ({ env = process.env, log, }) => {
         await exports.exec(`ssh-agent -k`, { log, env: childEnv });
     }
 };
+exports.main = main;
 
 
 /***/ }),
