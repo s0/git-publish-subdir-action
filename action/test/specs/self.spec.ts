@@ -1,4 +1,6 @@
+import { promises as fs } from 'fs';
 import * as path from 'path';
+import { mkdirP, rmRF } from '@actions/io';
 
 import * as util from '../util';
 
@@ -26,10 +28,11 @@ itGithubOnly('Deploy to another branch on self repo', async () => {
     );
 
   // Create dummy data
-  await util.mkdir(DATA_DIR);
-  await util.mkdir(path.join(DATA_DIR, 'dummy'));
-  await util.writeFile(path.join(DATA_DIR, 'dummy', 'baz'), 'foobar');
-  await util.writeFile(path.join(DATA_DIR, 'dummy', '.bat'), 'foobar');
+  await rmRF(DATA_DIR);
+  await mkdirP(DATA_DIR);
+  await mkdirP(path.join(DATA_DIR, 'dummy'));
+  await fs.writeFile(path.join(DATA_DIR, 'dummy', 'baz'), 'foobar');
+  await fs.writeFile(path.join(DATA_DIR, 'dummy', '.bat'), 'foobar');
 
   // Run Action
   await util.runWithGithubEnv(

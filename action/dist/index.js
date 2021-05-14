@@ -22938,7 +22938,7 @@ async function _checkout({
         .filter(([method]) => method === 'mkdir' || method === 'mkdir-index')
         .map(async function([_, fullpath]) {
           const filepath = `${dir}/${fullpath}`;
-          await fs.mkdir(filepath);
+          await mkdirP(filepath);
           if (onProgress) {
             await onProgress({
               phase: 'Updating workdir',
@@ -24784,7 +24784,7 @@ async function _init({
   ];
   folders = folders.map(dir => gitdir + '/' + dir);
   for (const folder of folders) {
-    await fs.mkdir(folder);
+    await mkdirP(folder);
   }
 
   await fs.write(

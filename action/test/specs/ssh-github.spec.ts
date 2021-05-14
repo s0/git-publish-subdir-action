@@ -1,4 +1,6 @@
+import { promises as fs } from 'fs';
 import * as path from 'path';
+import { mkdirP, rmRF } from '@actions/io';
 
 import * as util from '../util';
 
@@ -13,15 +15,18 @@ const RUNNING_IN_GITHUB = !!process.env.GITHUB_SSH_PRIVATE_KEY;
 const itGithubOnly = RUNNING_IN_GITHUB ? it : xit;
 
 itGithubOnly('Deploy to an existing branch on GitHub', async () => {
+  await rmRF(REPO_DIR);
+  await rmRF(DATA_DIR);
+
   // Create empty repo
-  await util.mkdir(REPO_DIR);
+  await mkdirP(REPO_DIR);
   await util.wrappedExec('git init --bare', { cwd: REPO_DIR });
 
   // Create dummy data
-  await util.mkdir(DATA_DIR);
-  await util.mkdir(path.join(DATA_DIR, 'dummy'));
-  await util.writeFile(path.join(DATA_DIR, 'dummy', 'baz'), 'foobar');
-  await util.writeFile(path.join(DATA_DIR, 'dummy', '.bat'), 'foobar');
+  await mkdirP(DATA_DIR);
+  await mkdirP(path.join(DATA_DIR, 'dummy'));
+  await fs.writeFile(path.join(DATA_DIR, 'dummy', 'baz'), 'foobar');
+  await fs.writeFile(path.join(DATA_DIR, 'dummy', '.bat'), 'foobar');
 
   // Run Action
   await util.runWithGithubEnv(

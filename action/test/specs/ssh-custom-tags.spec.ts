@@ -1,6 +1,7 @@
-import * as fs from 'fs';
+import fsModule, { promises as fs } from 'fs';
 import * as path from 'path';
 import git from 'isomorphic-git';
+import { mkdirP, rmRF } from '@actions/io';
 
 import * as util from '../util';
 
@@ -8,15 +9,18 @@ const REPO_DIR = path.join(util.REPOS_DIR, 'ssh-custom-tags.git');
 const DATA_DIR = path.join(util.DATA_DIR, 'ssh-custom-tags');
 
 it('Test custom tags', async () => {
+  await rmRF(REPO_DIR);
+  await rmRF(DATA_DIR);
+
   // Create empty repo
-  await util.mkdir(REPO_DIR);
+  await mkdirP(REPO_DIR);
   await util.wrappedExec('git init --bare', { cwd: REPO_DIR });
 
   // Create dummy data
-  await util.mkdir(DATA_DIR);
-  await util.mkdir(path.join(DATA_DIR, 'dummy'));
-  await util.writeFile(path.join(DATA_DIR, 'dummy', 'baz'), 'foobar');
-  await util.writeFile(path.join(DATA_DIR, 'dummy', '.bat'), 'foobar');
+  await mkdirP(DATA_DIR);
+  await mkdirP(path.join(DATA_DIR, 'dummy'));
+  await fs.writeFile(path.join(DATA_DIR, 'dummy', 'baz'), 'foobar');
+  await fs.writeFile(path.join(DATA_DIR, 'dummy', '.bat'), 'foobar');
 
   // Run Action
   await util.runWithGithubEnv(
@@ -25,7 +29,7 @@ it('Test custom tags', async () => {
       REPO: 'ssh://git@git-ssh/git-server/repos/ssh-custom-tags.git',
       BRANCH: 'branch-a',
       FOLDER: DATA_DIR,
-      SSH_PRIVATE_KEY: (await util.readFile(util.SSH_PRIVATE_KEY)).toString(),
+      SSH_PRIVATE_KEY: (await fs.readFile(util.SSH_PRIVATE_KEY)).toString(),
       KNOWN_HOSTS_FILE: util.KNOWN_HOSTS,
     },
     's0/test',
@@ -40,7 +44,7 @@ it('Test custom tags', async () => {
       REPO: 'ssh://git@git-ssh/git-server/repos/ssh-custom-tags.git',
       BRANCH: 'branch-a',
       FOLDER: DATA_DIR,
-      SSH_PRIVATE_KEY: (await util.readFile(util.SSH_PRIVATE_KEY)).toString(),
+      SSH_PRIVATE_KEY: (await fs.readFile(util.SSH_PRIVATE_KEY)).toString(),
       KNOWN_HOSTS_FILE: util.KNOWN_HOSTS,
       MESSAGE: 'This is another commit follow up with no content changes',
       TAG: 'foo-bar-tag-v0.1.2',
@@ -84,12 +88,12 @@ it('Test custom tags', async () => {
 
   // Ensure that commits for branch and tag are identical
   const tagSha = await git.resolveRef({
-    fs,
+    fs: fsModule,
     gitdir: REPO_DIR,
     ref: 'refs/tags/foo-bar-tag-v0.1.2',
   });
   const branchSha = await git.resolveRef({
-    fs,
+    fs: fsModule,
     gitdir: REPO_DIR,
     ref: 'refs/heads/branch-a',
   });

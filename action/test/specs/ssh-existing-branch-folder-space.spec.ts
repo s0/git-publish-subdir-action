@@ -1,4 +1,6 @@
+import { promises as fs } from 'fs';
 import * as path from 'path';
+import { mkdirP, rmRF } from '@actions/io';
 
 import * as util from '../util';
 
@@ -11,14 +13,17 @@ const REPO_CLONE_DIR = path.join(WORK_DIR, 'clone');
 const DATA_DIR = path.join(WORK_DIR, 'data with space');
 
 it('Spaces in folder names are correctly handled', async () => {
+  await rmRF(REPO_DIR);
+  await rmRF(WORK_DIR);
+
   // Create empty repo
-  await util.mkdir(REPO_DIR);
+  await mkdirP(REPO_DIR);
   await util.wrappedExec('git init --bare', { cwd: REPO_DIR });
 
   // Clone repo, and create an initial commit
-  await util.mkdir(WORK_DIR);
+  await mkdirP(WORK_DIR);
   await util.wrappedExec(`git clone "${REPO_DIR}" clone`, { cwd: WORK_DIR });
-  await util.writeFile(path.join(REPO_CLONE_DIR, 'initial'), 'foobar');
+  await fs.writeFile(path.join(REPO_CLONE_DIR, 'initial'), 'foobar');
   await util.wrappedExec(`git add -A .`, { cwd: REPO_CLONE_DIR });
   await util.wrappedExec(`git config user.name "Test User"`, {
     cwd: REPO_CLONE_DIR,
@@ -30,10 +35,9 @@ it('Spaces in folder names are correctly handled', async () => {
   await util.wrappedExec(`git push origin master`, { cwd: REPO_CLONE_DIR });
 
   // Create dummy data
-  await util.mkdir(DATA_DIR);
-  await util.mkdir(path.join(DATA_DIR, 'dummy foo'));
-  await util.writeFile(path.join(DATA_DIR, 'dummy foo', 'baz'), 'foobar');
-  await util.writeFile(path.join(DATA_DIR, 'dummy foo', '.bat'), 'foobar');
+  await mkdirP(path.join(DATA_DIR, 'dummy foo'));
+  await fs.writeFile(path.join(DATA_DIR, 'dummy foo', 'baz'), 'foobar');
+  await fs.writeFile(path.join(DATA_DIR, 'dummy foo', '.bat'), 'foobar');
 
   // Run Action
   await util.runWithGithubEnv(
@@ -42,7 +46,7 @@ it('Spaces in folder names are correctly handled', async () => {
       REPO: 'ssh://git@git-ssh/git-server/repos/ssh-existing-branch-folder-space.git',
       BRANCH: 'master',
       FOLDER: DATA_DIR,
-      SSH_PRIVATE_KEY: (await util.readFile(util.SSH_PRIVATE_KEY)).toString(),
+      SSH_PRIVATE_KEY: (await fs.readFile(util.SSH_PRIVATE_KEY)).toString(),
       KNOWN_HOSTS_FILE: util.KNOWN_HOSTS,
     },
     's0/test',

@@ -1,3 +1,4 @@
+import { rmRF } from '@actions/io';
 import * as path from 'path';
 
 import * as util from '../util';
@@ -24,6 +25,7 @@ describe('Misconfigurations', () => {
     const testname = `misconfiguration-missing-known-hosts`;
     const dataDir = path.join(util.DATA_DIR, testname);
 
+    await rmRF(dataDir);
     await util.mkdir(dataDir);
 
     // Run Action
@@ -281,6 +283,7 @@ describe('Misconfigurations', () => {
     const testname = `unauthorized-ssh-key`;
     const dataDir = path.join(util.DATA_DIR, testname);
 
+    await rmRF(dataDir);
     await util.mkdir(dataDir);
 
     // Run Action
@@ -320,6 +323,7 @@ describe('Misconfigurations', () => {
     const testname = `uself-missing-token`;
     const dataDir = path.join(util.DATA_DIR, testname);
 
+    await rmRF(dataDir);
     await util.mkdir(dataDir);
 
     // Run Action
@@ -360,6 +364,7 @@ describe('Misconfigurations', () => {
     const testname = `uself-missing-repo`;
     const dataDir = path.join(util.DATA_DIR, testname);
 
+    await rmRF(dataDir);
     await util.mkdir(dataDir);
 
     // Run Action

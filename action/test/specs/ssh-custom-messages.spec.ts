@@ -1,4 +1,6 @@
+import { promises as fs } from 'fs';
 import * as path from 'path';
+import { mkdirP, rmRF } from '@actions/io';
 
 import * as util from '../util';
 
@@ -6,15 +8,18 @@ const REPO_DIR = path.join(util.REPOS_DIR, 'ssh-custom-messages.git');
 const DATA_DIR = path.join(util.DATA_DIR, 'ssh-custom-messages');
 
 it('Test custom message templates', async () => {
+  await rmRF(REPO_DIR);
+  await rmRF(DATA_DIR);
+
   // Create empty repo
-  await util.mkdir(REPO_DIR);
+  await mkdirP(REPO_DIR);
   await util.wrappedExec('git init --bare', { cwd: REPO_DIR });
 
   // Create dummy data
-  await util.mkdir(DATA_DIR);
-  await util.mkdir(path.join(DATA_DIR, 'dummy'));
-  await util.writeFile(path.join(DATA_DIR, 'dummy', 'baz'), 'foobar');
-  await util.writeFile(path.join(DATA_DIR, 'dummy', '.bat'), 'foobar');
+  await mkdirP(DATA_DIR);
+  await mkdirP(path.join(DATA_DIR, 'dummy'));
+  await fs.writeFile(path.join(DATA_DIR, 'dummy', 'baz'), 'foobar');
+  await fs.writeFile(path.join(DATA_DIR, 'dummy', '.bat'), 'foobar');
 
   // Run Action
   await util.runWithGithubEnv(
@@ -23,7 +28,7 @@ it('Test custom message templates', async () => {
       REPO: 'ssh://git@git-ssh/git-server/repos/ssh-custom-messages.git',
       BRANCH: 'branch-a',
       FOLDER: DATA_DIR,
-      SSH_PRIVATE_KEY: (await util.readFile(util.SSH_PRIVATE_KEY)).toString(),
+      SSH_PRIVATE_KEY: (await fs.readFile(util.SSH_PRIVATE_KEY)).toString(),
       KNOWN_HOSTS_FILE: util.KNOWN_HOSTS,
       MESSAGE:
         'This is a test message with placeholders:\n* {long-sha}\n* {sha}\n* {branch}',
@@ -40,7 +45,7 @@ it('Test custom message templates', async () => {
       REPO: 'ssh://git@git-ssh/git-server/repos/ssh-custom-messages.git',
       BRANCH: 'branch-a',
       FOLDER: DATA_DIR,
-      SSH_PRIVATE_KEY: (await util.readFile(util.SSH_PRIVATE_KEY)).toString(),
+      SSH_PRIVATE_KEY: (await fs.readFile(util.SSH_PRIVATE_KEY)).toString(),
       KNOWN_HOSTS_FILE: util.KNOWN_HOSTS,
       MESSAGE: 'This is another commit follow up with no content changes',
     },

@@ -1,18 +1,11 @@
 import * as child_process from 'child_process';
 import { stream as fgStream } from 'fast-glob';
-import * as fs from 'fs';
+import fsModule, { promises as fs } from 'fs';
 import gitUrlParse from 'git-url-parse';
 import { homedir, tmpdir } from 'os';
 import * as path from 'path';
-import { promisify } from 'util';
 import git from 'isomorphic-git';
-
-const readFile = promisify(fs.readFile);
-const copyFile = promisify(fs.copyFile);
-const mkdir = promisify(fs.mkdir);
-const mkdtemp = promisify(fs.mkdtemp);
-const stat = promisify(fs.stat);
-const unlink = promisify(fs.unlink);
+import { mkdirP } from '@actions/io';
 
 export type Console = {
   readonly log: (...msg: unknown[]) => void;
@@ -323,7 +316,7 @@ export const main = async ({
 
   // Calculate paths that use temp diractory
 
-  const TMP_PATH = await mkdtemp(
+  const TMP_PATH = await fs.mkdtemp(
     path.join(tmpdir(), 'git-publish-subdir-action-')
   );
   const REPO_TEMP = path.join(TMP_PATH, 'repo');
@@ -332,7 +325,7 @@ export const main = async ({
   if (!env.GITHUB_EVENT_PATH) throw new Error('Expected GITHUB_EVENT_PATH');
 
   const event: Event = JSON.parse(
-    (await readFile(env.GITHUB_EVENT_PATH)).toString()
+    (await fs.readFile(env.GITHUB_EVENT_PATH)).toString()
   );
 
   const name =
@@ -360,7 +353,8 @@ export const main = async ({
     // Get the root git directory
     let dir = process.cwd();
     while (true) {
-      const isGitRepo = await stat(path.join(dir, '.git'))
+      const isGitRepo = await fs
+        .stat(path.join(dir, '.git'))
         .then((s) => s.isDirectory())
         .catch(() => false);
       if (isGitRepo) {
@@ -383,7 +377,7 @@ export const main = async ({
 
     // Get current sha of repo to use in commit message
     const gitLog = await git.log({
-      fs,
+      fs: fsModule,
       depth: 1,
       dir,
     });
@@ -418,8 +412,8 @@ export const main = async ({
     if (!known_hosts) {
       log.warn(KNOWN_HOSTS_WARNING);
     } else {
-      await mkdir(SSH_FOLDER, { recursive: true });
-      await copyFile(known_hosts, KNOWN_HOSTS_TARGET);
+      await mkdirP(SSH_FOLDER);
+      await fs.copyFile(known_hosts, KNOWN_HOSTS_TARGET);
     }
 
     // Setup ssh-agent with private key
@@ -532,7 +526,7 @@ export const main = async ({
       log.log(
         `##[info] Using custom glob file to clear target branch ${env.CLEAR_GLOBS_FILE}`
       );
-      const globList = (await readFile(env.CLEAR_GLOBS_FILE))
+      const globList = (await fs.readFile(env.CLEAR_GLOBS_FILE))
         .toString()
         .split('\n')
         .map((s) => s.trim())
@@ -552,7 +546,7 @@ export const main = async ({
   });
   // Delete all files from the filestream
   for await (const entry of filesToDelete) {
-    await unlink(entry);
+    await fs.unlink(entry);
   }
   const folder = path.resolve(process.cwd(), config.folder);
   log.log(`##[info] Copying all files from ${folder}`);
@@ -565,7 +559,7 @@ export const main = async ({
     .replace(/\{long\-sha\}/g, gitInfo.sha)
     .replace(/\{msg\}/g, gitInfo.commitMessage);
   await git.commit({
-    fs,
+    fs: fsModule,
     dir: REPO_TEMP,
     message,
     author: { email, name },
@@ -573,9 +567,10 @@ export const main = async ({
   if (tag) {
     log.log(`##[info] Tagging commit with ${tag}`);
     await git.tag({
-      fs,
+      fs: fsModule,
       dir: REPO_TEMP,
       ref: tag,
+      force: true,
     });
   }
   if (config.skipEmptyCommits) {
@@ -583,18 +578,18 @@ export const main = async ({
     // Before we push, check whether it changed the tree,
     // and avoid pushing if not
     const head = await git.resolveRef({
-      fs,
+      fs: fsModule,
       dir: REPO_TEMP,
       ref: 'HEAD',
     });
     const currentCommit = await git.readCommit({
-      fs,
+      fs: fsModule,
       dir: REPO_TEMP,
       oid: head,
     });
     if (currentCommit.commit.parent.length === 1) {
       const previousCommit = await git.readCommit({
-        fs,
+        fs: fsModule,
         dir: REPO_TEMP,
         oid: currentCommit.commit.parent[0],
       });

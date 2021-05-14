@@ -1,4 +1,6 @@
+import { promises as fs } from 'fs';
 import * as path from 'path';
+import { mkdirP, rmRF } from '@actions/io';
 
 import * as util from '../util';
 
@@ -6,15 +8,20 @@ const REPO_DIR = path.join(util.REPOS_DIR, 'ssh-skip-empty-commits.git');
 const DATA_DIR = path.join(util.DATA_DIR, 'ssh-skip-empty-commits');
 
 it('Skip empty commits', async () => {
+  await rmRF(REPO_DIR);
+  await rmRF(DATA_DIR);
+
   // Create empty repo
-  await util.mkdir(REPO_DIR);
+  await rmRF(REPO_DIR);
+  await mkdirP(REPO_DIR);
   await util.wrappedExec('git init --bare', { cwd: REPO_DIR });
 
   // Create dummy data
-  await util.mkdir(DATA_DIR);
-  await util.mkdir(path.join(DATA_DIR, 'dummy'));
-  await util.writeFile(path.join(DATA_DIR, 'dummy', 'baz'), 'foobar');
-  await util.writeFile(path.join(DATA_DIR, 'dummy', '.bat'), 'foobar');
+  await rmRF(DATA_DIR);
+  await mkdirP(DATA_DIR);
+  await mkdirP(path.join(DATA_DIR, 'dummy'));
+  await fs.writeFile(path.join(DATA_DIR, 'dummy', 'baz'), 'foobar');
+  await fs.writeFile(path.join(DATA_DIR, 'dummy', '.bat'), 'foobar');
 
   // Run Action
   await util.runWithGithubEnv(
@@ -23,7 +30,7 @@ it('Skip empty commits', async () => {
       REPO: 'ssh://git@git-ssh/git-server/repos/ssh-skip-empty-commits.git',
       BRANCH: 'branch-a',
       FOLDER: DATA_DIR,
-      SSH_PRIVATE_KEY: (await util.readFile(util.SSH_PRIVATE_KEY)).toString(),
+      SSH_PRIVATE_KEY: (await fs.readFile(util.SSH_PRIVATE_KEY)).toString(),
       KNOWN_HOSTS_FILE: util.KNOWN_HOSTS,
       SKIP_EMPTY_COMMITS: 'true',
     },
@@ -33,14 +40,14 @@ it('Skip empty commits', async () => {
   );
   const fullSha1 = await util.getFullRepoSha();
   // Change files and run action again
-  await util.writeFile(path.join(DATA_DIR, 'dummy', 'bat'), 'foobar');
+  await fs.writeFile(path.join(DATA_DIR, 'dummy', 'bat'), 'foobar');
   await util.runWithGithubEnv(
     path.basename(__filename),
     {
       REPO: 'ssh://git@git-ssh/git-server/repos/ssh-skip-empty-commits.git',
       BRANCH: 'branch-a',
       FOLDER: DATA_DIR,
-      SSH_PRIVATE_KEY: (await util.readFile(util.SSH_PRIVATE_KEY)).toString(),
+      SSH_PRIVATE_KEY: (await fs.readFile(util.SSH_PRIVATE_KEY)).toString(),
       KNOWN_HOSTS_FILE: util.KNOWN_HOSTS,
       SKIP_EMPTY_COMMITS: 'true',
     },
@@ -56,7 +63,7 @@ it('Skip empty commits', async () => {
       REPO: 'ssh://git@git-ssh/git-server/repos/ssh-skip-empty-commits.git',
       BRANCH: 'branch-a',
       FOLDER: DATA_DIR,
-      SSH_PRIVATE_KEY: (await util.readFile(util.SSH_PRIVATE_KEY)).toString(),
+      SSH_PRIVATE_KEY: (await fs.readFile(util.SSH_PRIVATE_KEY)).toString(),
       KNOWN_HOSTS_FILE: util.KNOWN_HOSTS,
       SKIP_EMPTY_COMMITS: 'true',
     },
