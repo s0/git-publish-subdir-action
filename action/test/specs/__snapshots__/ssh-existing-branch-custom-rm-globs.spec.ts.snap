@@ -1,0 +1,10 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Check that only target deleted files are removed 1`] = `
+"msg:Update master to output generated at <sha>
+tree:a410d7d48ed702489e7ff5f4de76163f3b4d48d6
+author:s0 <s0@users.noreply.github.com>
+msg:initial
+tree:2ba0f344a4227360745f8b743b28af58d010c2f4
+author:Test User <test@example.com>"
+`;
