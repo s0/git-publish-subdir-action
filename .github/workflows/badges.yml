@@ -19,7 +19,7 @@ jobs:
         cd action
         npm install
     - id: libyear
-      uses: s0/libyear-node-action@v0.0.3
+      uses: s0/libyear-node-action@v0.1.1
       env:
         FOLDER: action
     - run: mkdir badges
