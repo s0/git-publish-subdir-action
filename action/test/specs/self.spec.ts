@@ -1,10 +1,9 @@
 import { promises as fs } from 'fs';
 import * as path from 'path';
-import { mkdirP, rmRF } from '@actions/io';
+import { mkdirP } from '@actions/io';
 
 import * as util from '../util';
-
-const DATA_DIR = path.join(util.DATA_DIR, 'self');
+import { prepareTestFolders } from '../util/io';
 
 const RUNNING_IN_GITHUB =
   !!process.env.GITHUB_SELF_TEST_REPO && !!process.env.GITHUB_SELF_TEST_TOKEN;
@@ -28,11 +27,10 @@ itGithubOnly('Deploy to another branch on self repo', async () => {
     );
 
   // Create dummy data
-  await rmRF(DATA_DIR);
-  await mkdirP(DATA_DIR);
-  await mkdirP(path.join(DATA_DIR, 'dummy'));
-  await fs.writeFile(path.join(DATA_DIR, 'dummy', 'baz'), 'foobar');
-  await fs.writeFile(path.join(DATA_DIR, 'dummy', '.bat'), 'foobar');
+  const folders = await prepareTestFolders({ __filename });
+  await mkdirP(path.join(folders.dataDir, 'dummy'));
+  await fs.writeFile(path.join(folders.dataDir, 'dummy', 'baz'), 'foobar');
+  await fs.writeFile(path.join(folders.dataDir, 'dummy', '.bat'), 'foobar');
 
   // Run Action
   await util.runWithGithubEnv(
@@ -40,7 +38,7 @@ itGithubOnly('Deploy to another branch on self repo', async () => {
     {
       REPO: 'self',
       BRANCH: 'tmp-test-branch',
-      FOLDER: DATA_DIR,
+      FOLDER: folders.dataDir,
       GITHUB_TOKEN: token,
     },
     repo,

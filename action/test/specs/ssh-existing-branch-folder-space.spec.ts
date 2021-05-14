@@ -1,51 +1,47 @@
 import { promises as fs } from 'fs';
 import * as path from 'path';
-import { mkdirP, rmRF } from '@actions/io';
+import { mkdirP } from '@actions/io';
 
 import * as util from '../util';
-
-const REPO_DIR = path.join(
-  util.REPOS_DIR,
-  'ssh-existing-branch-folder-space.git'
-);
-const WORK_DIR = path.join(util.DATA_DIR, 'ssh-existing-branch-folder-space');
-const REPO_CLONE_DIR = path.join(WORK_DIR, 'clone');
-const DATA_DIR = path.join(WORK_DIR, 'data with space');
+import { prepareTestFolders } from '../util/io';
 
 it('Spaces in folder names are correctly handled', async () => {
-  await rmRF(REPO_DIR);
-  await rmRF(WORK_DIR);
+  const folders = await prepareTestFolders({ __filename });
 
   // Create empty repo
-  await mkdirP(REPO_DIR);
-  await util.wrappedExec('git init --bare', { cwd: REPO_DIR });
+  await util.wrappedExec('git init --bare', { cwd: folders.repoDir });
 
   // Clone repo, and create an initial commit
-  await mkdirP(WORK_DIR);
-  await util.wrappedExec(`git clone "${REPO_DIR}" clone`, { cwd: WORK_DIR });
-  await fs.writeFile(path.join(REPO_CLONE_DIR, 'initial'), 'foobar');
-  await util.wrappedExec(`git add -A .`, { cwd: REPO_CLONE_DIR });
+  await util.wrappedExec(`git clone "${folders.repoDir}" clone`, {
+    cwd: folders.workDir,
+  });
+  await fs.writeFile(path.join(folders.repoCloneDir, 'initial'), 'foobar');
+  await util.wrappedExec(`git add -A .`, { cwd: folders.repoCloneDir });
   await util.wrappedExec(`git config user.name "Test User"`, {
-    cwd: REPO_CLONE_DIR,
+    cwd: folders.repoCloneDir,
   });
   await util.wrappedExec(`git config user.email "test@example.com"`, {
-    cwd: REPO_CLONE_DIR,
+    cwd: folders.repoCloneDir,
   });
-  await util.wrappedExec(`git commit -m initial`, { cwd: REPO_CLONE_DIR });
-  await util.wrappedExec(`git push origin master`, { cwd: REPO_CLONE_DIR });
+  await util.wrappedExec(`git commit -m initial`, {
+    cwd: folders.repoCloneDir,
+  });
+  await util.wrappedExec(`git push origin master`, {
+    cwd: folders.repoCloneDir,
+  });
 
   // Create dummy data
-  await mkdirP(path.join(DATA_DIR, 'dummy foo'));
-  await fs.writeFile(path.join(DATA_DIR, 'dummy foo', 'baz'), 'foobar');
-  await fs.writeFile(path.join(DATA_DIR, 'dummy foo', '.bat'), 'foobar');
+  await mkdirP(path.join(folders.dataDir, 'dummy foo'));
+  await fs.writeFile(path.join(folders.dataDir, 'dummy foo', 'baz'), 'foobar');
+  await fs.writeFile(path.join(folders.dataDir, 'dummy foo', '.bat'), 'foobar');
 
   // Run Action
   await util.runWithGithubEnv(
     path.basename(__filename),
     {
-      REPO: 'ssh://git@git-ssh/git-server/repos/ssh-existing-branch-folder-space.git',
+      REPO: folders.repoUrl,
       BRANCH: 'master',
-      FOLDER: DATA_DIR,
+      FOLDER: folders.dataDir,
       SSH_PRIVATE_KEY: (await fs.readFile(util.SSH_PRIVATE_KEY)).toString(),
       KNOWN_HOSTS_FILE: util.KNOWN_HOSTS,
     },
@@ -60,7 +56,7 @@ it('Spaces in folder names are correctly handled', async () => {
     await util.exec(
       'git log --pretty="format:msg:%s%ntree:%T%nauthor:%an <%ae>" master',
       {
-        cwd: REPO_DIR,
+        cwd: folders.repoDir,
       }
     )
   ).stdout;

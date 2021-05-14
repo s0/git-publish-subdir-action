@@ -1,34 +1,29 @@
 import fsModule, { promises as fs } from 'fs';
 import * as path from 'path';
 import git from 'isomorphic-git';
-import { mkdirP, rmRF } from '@actions/io';
+import { mkdirP } from '@actions/io';
 
 import * as util from '../util';
-
-const REPO_DIR = path.join(util.REPOS_DIR, 'ssh-custom-tags.git');
-const DATA_DIR = path.join(util.DATA_DIR, 'ssh-custom-tags');
+import { prepareTestFolders } from '../util/io';
 
 it('Test custom tags', async () => {
-  await rmRF(REPO_DIR);
-  await rmRF(DATA_DIR);
+  const folders = await prepareTestFolders({ __filename });
 
   // Create empty repo
-  await mkdirP(REPO_DIR);
-  await util.wrappedExec('git init --bare', { cwd: REPO_DIR });
+  await util.wrappedExec('git init --bare', { cwd: folders.repoDir });
 
   // Create dummy data
-  await mkdirP(DATA_DIR);
-  await mkdirP(path.join(DATA_DIR, 'dummy'));
-  await fs.writeFile(path.join(DATA_DIR, 'dummy', 'baz'), 'foobar');
-  await fs.writeFile(path.join(DATA_DIR, 'dummy', '.bat'), 'foobar');
+  await mkdirP(path.join(folders.dataDir, 'dummy'));
+  await fs.writeFile(path.join(folders.dataDir, 'dummy', 'baz'), 'foobar');
+  await fs.writeFile(path.join(folders.dataDir, 'dummy', '.bat'), 'foobar');
 
   // Run Action
   await util.runWithGithubEnv(
     path.basename(__filename),
     {
-      REPO: 'ssh://git@git-ssh/git-server/repos/ssh-custom-tags.git',
+      REPO: folders.repoUrl,
       BRANCH: 'branch-a',
-      FOLDER: DATA_DIR,
+      FOLDER: folders.dataDir,
       SSH_PRIVATE_KEY: (await fs.readFile(util.SSH_PRIVATE_KEY)).toString(),
       KNOWN_HOSTS_FILE: util.KNOWN_HOSTS,
     },
@@ -41,9 +36,9 @@ it('Test custom tags', async () => {
   await util.runWithGithubEnv(
     path.basename(__filename),
     {
-      REPO: 'ssh://git@git-ssh/git-server/repos/ssh-custom-tags.git',
+      REPO: folders.repoUrl,
       BRANCH: 'branch-a',
-      FOLDER: DATA_DIR,
+      FOLDER: folders.dataDir,
       SSH_PRIVATE_KEY: (await fs.readFile(util.SSH_PRIVATE_KEY)).toString(),
       KNOWN_HOSTS_FILE: util.KNOWN_HOSTS,
       MESSAGE: 'This is another commit follow up with no content changes',
@@ -60,7 +55,7 @@ it('Test custom tags', async () => {
       await util.exec(
         'git log --pretty="format:msg:%B%ntree:%T%nauthor:%an <%ae>" branch-a',
         {
-          cwd: REPO_DIR,
+          cwd: folders.repoDir,
         }
       )
     ).stdout;
@@ -76,7 +71,7 @@ it('Test custom tags', async () => {
       await util.exec(
         'git log --pretty="format:msg:%B%ntree:%T%nauthor:%an <%ae>" foo-bar-tag-v0.1.2',
         {
-          cwd: REPO_DIR,
+          cwd: folders.repoDir,
         }
       )
     ).stdout;
@@ -89,12 +84,12 @@ it('Test custom tags', async () => {
   // Ensure that commits for branch and tag are identical
   const tagSha = await git.resolveRef({
     fs: fsModule,
-    gitdir: REPO_DIR,
+    gitdir: folders.repoDir,
     ref: 'refs/tags/foo-bar-tag-v0.1.2',
   });
   const branchSha = await git.resolveRef({
     fs: fsModule,
-    gitdir: REPO_DIR,
+    gitdir: folders.repoDir,
     ref: 'refs/heads/branch-a',
   });
   expect(tagSha).toEqual(branchSha);

@@ -1,11 +1,9 @@
 import { promises as fs } from 'fs';
 import * as path from 'path';
-import { mkdirP, rmRF } from '@actions/io';
+import { mkdirP } from '@actions/io';
 
 import * as util from '../util';
-
-const REPO_DIR = path.join(util.REPOS_DIR, 'ssh-no-branch-github.git');
-const DATA_DIR = path.join(util.DATA_DIR, 'ssh-no-branch-github');
+import { prepareTestFolders } from '../util/io';
 
 const RUNNING_IN_GITHUB = !!process.env.GITHUB_SSH_PRIVATE_KEY;
 
@@ -15,26 +13,23 @@ const RUNNING_IN_GITHUB = !!process.env.GITHUB_SSH_PRIVATE_KEY;
 const itGithubOnly = RUNNING_IN_GITHUB ? it : xit;
 
 itGithubOnly('Deploy to an existing branch on GitHub', async () => {
-  await rmRF(REPO_DIR);
-  await rmRF(DATA_DIR);
+  const folders = await prepareTestFolders({ __filename });
 
   // Create empty repo
-  await mkdirP(REPO_DIR);
-  await util.wrappedExec('git init --bare', { cwd: REPO_DIR });
+  await util.wrappedExec('git init --bare', { cwd: folders.repoDir });
 
   // Create dummy data
-  await mkdirP(DATA_DIR);
-  await mkdirP(path.join(DATA_DIR, 'dummy'));
-  await fs.writeFile(path.join(DATA_DIR, 'dummy', 'baz'), 'foobar');
-  await fs.writeFile(path.join(DATA_DIR, 'dummy', '.bat'), 'foobar');
+  await mkdirP(path.join(folders.dataDir, 'dummy'));
+  await fs.writeFile(path.join(folders.dataDir, 'dummy', 'baz'), 'foobar');
+  await fs.writeFile(path.join(folders.dataDir, 'dummy', '.bat'), 'foobar');
 
   // Run Action
   await util.runWithGithubEnv(
     path.basename(__filename),
     {
-      REPO: 'git@github.com:s0/git-publish-subdir-action-tests.git',
+      REPO: folders.repoUrl,
       BRANCH: 'branch-a',
-      FOLDER: DATA_DIR,
+      FOLDER: folders.dataDir,
       SSH_PRIVATE_KEY: util.getGitHubSSHPrivateKey(),
     },
     's0/test',

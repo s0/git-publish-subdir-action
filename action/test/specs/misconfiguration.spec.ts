@@ -1,7 +1,5 @@
-import { rmRF } from '@actions/io';
-import * as path from 'path';
-
 import * as util from '../util';
+import { prepareTestFolders } from '../util/io';
 
 const KNOWN_HOSTS_WARNING = `
 ##[warning] KNOWN_HOSTS_FILE not set
@@ -22,20 +20,16 @@ that the public key has been added to the target repo
 
 describe('Misconfigurations', () => {
   xit('missing-known-hosts', async () => {
-    const testname = `misconfiguration-missing-known-hosts`;
-    const dataDir = path.join(util.DATA_DIR, testname);
-
-    await rmRF(dataDir);
-    await util.mkdir(dataDir);
+    const folders = await prepareTestFolders({ __filename });
 
     // Run Action
     await util
       .runWithGithubEnv(
-        testname,
+        folders.testName,
         {
-          REPO: 'ssh://git@git-ssh/git-server/repos/non-existing.git',
+          REPO: folders.repoUrl,
           BRANCH: 'branch-a',
-          FOLDER: dataDir,
+          FOLDER: folders.dataDir,
           SSH_PRIVATE_KEY: (
             await util.readFile(util.SSH_PRIVATE_KEY)
           ).toString(),
@@ -63,16 +57,15 @@ describe('Misconfigurations', () => {
   });
 
   it('missing-repo', async () => {
-    const testname = `misconfiguration-missing-repo`;
-    const dataDir = path.join(util.DATA_DIR, testname);
+    const folders = await prepareTestFolders({ __filename });
 
     // Run Action
     await util
       .runWithGithubEnv(
-        testname,
+        folders.testName,
         {
           BRANCH: 'branch-a',
-          FOLDER: dataDir,
+          FOLDER: folders.dataDir,
         },
         's0/test',
         {},
@@ -98,14 +91,14 @@ describe('Misconfigurations', () => {
   });
 
   it('missing-folder', async () => {
-    const testname = `misconfiguration-missing-folder`;
+    const folders = await prepareTestFolders({ __filename });
 
     // Run Action
     await util
       .runWithGithubEnv(
-        testname,
+        folders.testName,
         {
-          REPO: 'ssh://git@git-ssh/git-server/repos/non-existing.git',
+          REPO: folders.repoUrl,
           BRANCH: 'branch-a',
         },
         's0/test',
@@ -132,16 +125,15 @@ describe('Misconfigurations', () => {
   });
 
   it('missing-branch', async () => {
-    const testname = `misconfiguration-missing-branch`;
-    const dataDir = path.join(util.DATA_DIR, testname);
+    const folders = await prepareTestFolders({ __filename });
 
     // Run Action
     await util
       .runWithGithubEnv(
-        testname,
+        folders.testName,
         {
-          REPO: 'ssh://git@git-ssh/git-server/repos/non-existing.git',
-          FOLDER: dataDir,
+          REPO: folders.repoUrl,
+          FOLDER: folders.dataDir,
         },
         's0/test',
         {},
@@ -167,17 +159,16 @@ describe('Misconfigurations', () => {
   });
 
   it('missing-event-path', async () => {
-    const testname = `misconfiguration-missing-event-path`;
-    const dataDir = path.join(util.DATA_DIR, testname);
+    const folders = await prepareTestFolders({ __filename });
 
     // Run Action
     await util
       .runWithGithubEnv(
-        testname,
+        folders.testName,
         {
-          REPO: 'ssh://git@git-ssh/git-server/repos/non-existing.git',
+          REPO: folders.repoUrl,
           BRANCH: 'branch-a',
-          FOLDER: dataDir,
+          FOLDER: folders.dataDir,
           SSH_PRIVATE_KEY: (
             await util.readFile(util.SSH_PRIVATE_KEY)
           ).toString(),
@@ -207,17 +198,16 @@ describe('Misconfigurations', () => {
   });
 
   it('missing-ssh-private-key', async () => {
-    const testname = `misconfiguration-missing-ssh-private-key`;
-    const dataDir = path.join(util.DATA_DIR, testname);
+    const folders = await prepareTestFolders({ __filename });
 
     // Run Action
     await util
       .runWithGithubEnv(
-        testname,
+        folders.testName,
         {
-          REPO: 'ssh://git@git-ssh/git-server/repos/non-existing.git',
+          REPO: folders.repoUrl,
           BRANCH: 'branch-a',
-          FOLDER: dataDir,
+          FOLDER: folders.dataDir,
         },
         's0/test',
         {},
@@ -245,17 +235,16 @@ describe('Misconfigurations', () => {
   });
 
   it('unsupported-http-repo', async () => {
-    const testname = `misconfiguration-unsupported-http-repo`;
-    const dataDir = path.join(util.DATA_DIR, testname);
+    const folders = await prepareTestFolders({ __filename });
 
     // Run Action
     await util
       .runWithGithubEnv(
-        testname,
+        folders.testName,
         {
           REPO: 'https://github.com/s0/git-publish-subdir-action-tests.git',
           BRANCH: 'branch-a',
-          FOLDER: dataDir,
+          FOLDER: folders.dataDir,
         },
         's0/test',
         {},
@@ -280,20 +269,16 @@ describe('Misconfigurations', () => {
       });
   });
   it('unauthorized-ssh-key', async () => {
-    const testname = `unauthorized-ssh-key`;
-    const dataDir = path.join(util.DATA_DIR, testname);
-
-    await rmRF(dataDir);
-    await util.mkdir(dataDir);
+    const folders = await prepareTestFolders({ __filename });
 
     // Run Action
     await util
       .runWithGithubEnv(
-        testname,
+        folders.testName,
         {
-          REPO: 'ssh://git@git-ssh/git-server/repos/ssh-no-branch.git',
+          REPO: folders.repoUrl,
           BRANCH: 'branch-a',
-          FOLDER: dataDir,
+          FOLDER: folders.dataDir,
           SSH_PRIVATE_KEY: (
             await util.readFile(util.SSH_PRIVATE_KEY_INVALID)
           ).toString(),
@@ -320,20 +305,16 @@ describe('Misconfigurations', () => {
       });
   });
   it('self-missing-token', async () => {
-    const testname = `uself-missing-token`;
-    const dataDir = path.join(util.DATA_DIR, testname);
-
-    await rmRF(dataDir);
-    await util.mkdir(dataDir);
+    const folders = await prepareTestFolders({ __filename });
 
     // Run Action
     await util
       .runWithGithubEnv(
-        testname,
+        folders.testName,
         {
           REPO: 'self',
           BRANCH: 'tmp-test-branch',
-          FOLDER: dataDir,
+          FOLDER: folders.dataDir,
         },
         's0/test',
         {},
@@ -361,20 +342,16 @@ describe('Misconfigurations', () => {
   });
 
   it('self-missing-repo', async () => {
-    const testname = `uself-missing-repo`;
-    const dataDir = path.join(util.DATA_DIR, testname);
-
-    await rmRF(dataDir);
-    await util.mkdir(dataDir);
+    const folders = await prepareTestFolders({ __filename });
 
     // Run Action
     await util
       .runWithGithubEnv(
-        testname,
+        folders.testName,
         {
           REPO: 'self',
           BRANCH: 'tmp-test-branch',
-          FOLDER: dataDir,
+          FOLDER: folders.dataDir,
           GITHUB_TOKEN: 'foobar',
         },
         undefined,
