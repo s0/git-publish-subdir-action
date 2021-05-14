@@ -1,6 +1,6 @@
 # GitHub Action: Push git subdirectory as branch
 
-[![](https://github.com/s0/git-publish-subdir-action/workflows/Scheduled%20tests/badge.svg)](https://github.com/s0/git-publish-subdir-action/actions?workflow=Scheduled+tests) [![codecov](https://codecov.io/gh/s0/git-publish-subdir-action/branch/master/graph/badge.svg)](https://codecov.io/gh/s0/git-publish-subdir-action)
+[![](https://github.com/s0/git-publish-subdir-action/workflows/Scheduled%20tests/badge.svg)](https://github.com/s0/git-publish-subdir-action/actions?workflow=Scheduled+tests) [![codecov](https://codecov.io/gh/s0/git-publish-subdir-action/branch/master/graph/badge.svg)](https://codecov.io/gh/s0/git-publish-subdir-action) [![](https://raw.githubusercontent.com/s0/git-publish-subdir-action/gh-badges/drift.svg)](https://github.com/s0/libyear-node-action) [![](https://raw.githubusercontent.com/s0/git-publish-subdir-action/gh-badges/releases.svg)](https://github.com/s0/libyear-node-action)
 
 This GitHub Action will take any subdirectory in your repository, and push it as the contents of a git branch to a repository and branch of your choosing, either over SSH or to the current repo.
 
