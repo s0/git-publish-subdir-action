@@ -171,7 +171,7 @@ All configuration options are passed in via `env`, as environment variables.
 | `SKIP_EMPTY_COMMITS` | If set to `true`, commits will only be pushed if the contents of the target branch will be changed as a result. This is useful if, for example, you'd like to easily track which upstream changes result in changes to your target branch. | No |
 | `MESSAGE`          | A custom template to use as the commit message pushed to the target branch. See [custom commit messages](#custom-commit-messages). | No |
 | `TAG` | A string following the [git-check-ref-format](https://git-scm.com/docs/git-check-ref-format) that tags the commit with a lightweight git-tag. | No |
-| `CUSTOM_CLEAR_GLOBS` | An optional path to a file to use as a list of globs defining which files to delete when clearing the target branch. | No |
+| `CLEAR_GLOBS_FILE` | An optional path to a file to use as a list of globs defining which files to delete when clearing the target branch. | No |
 
 ### Custom commit messages
 
@@ -208,7 +208,7 @@ This can now be overwritten by specifying a file with a custom list of globs to
 define which files should be deleted from the target branch before copying the
 new files over.
 
-The environment variable `CUSTOM_CLEAR_GLOBS` should point to the path of the
+The environment variable `CLEAR_GLOBS_FILE` should point to the path of the
 glob file (which can have any name) relative to root of the repository.
 **(Note: this is not the root of the `target` branch, the file should be defined
 on the same branch as the one running this workflow)**
@@ -231,7 +231,7 @@ jobs:
     - uses: s0/git-publish-subdir-action@develop
       env:
         # ...
-        CUSTOM_CLEAR_GLOBS: ".clear-target-files"
+        CLEAR_GLOBS_FILE: ".clear-target-files"
 ```
 
 And the target branch already had the files:

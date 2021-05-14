@@ -62,7 +62,7 @@ it('Check that only target deleted files are removed', async () => {
       FOLDER: DATA_DIR,
       SSH_PRIVATE_KEY: (await util.readFile(util.SSH_PRIVATE_KEY)).toString(),
       KNOWN_HOSTS_FILE: util.KNOWN_HOSTS,
-      CUSTOM_CLEAR_GLOBS: globPath,
+      CLEAR_GLOBS_FILE: globPath,
     },
     's0/test',
     {},

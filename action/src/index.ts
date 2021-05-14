@@ -128,7 +128,7 @@ export interface EnvironmentVariables {
    * An optional path to a file to use as a list of globs defining which files
    * to delete when clearing the target branch
    */
-  CUSTOM_CLEAR_GLOBS?: string;
+  CLEAR_GLOBS_FILE?: string;
   /**
    * An optional string in git-check-ref-format to use for tagging the commit
    */
@@ -527,12 +527,12 @@ export const main = async ({
    * The list of globs we'll use for clearing
    */
   const globs = await (async () => {
-    if (env.CUSTOM_CLEAR_GLOBS) {
+    if (env.CLEAR_GLOBS_FILE) {
       // We need to use a custom mechanism to clear the files
       log.log(
-        `##[info] Using custom glob file to clear target branch ${env.CUSTOM_CLEAR_GLOBS}`
+        `##[info] Using custom glob file to clear target branch ${env.CLEAR_GLOBS_FILE}`
       );
-      const globList = (await readFile(env.CUSTOM_CLEAR_GLOBS))
+      const globList = (await readFile(env.CLEAR_GLOBS_FILE))
         .toString()
         .split('\n')
         .map((s) => s.trim())
