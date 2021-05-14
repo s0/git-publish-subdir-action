@@ -1,3 +1,4 @@
+import { promises as fs } from 'fs';
 import * as path from 'path';
 import { mkdirP, rmRF } from '@actions/io';
 
@@ -12,20 +13,21 @@ const REPO_CLONE_DIR = path.join(WORK_DIR, 'clone');
 const DATA_DIR = path.join(WORK_DIR, 'data');
 
 it('Check that only target deleted files are removed', async () => {
-  // Create empty repo
   await rmRF(REPO_DIR);
+  await rmRF(WORK_DIR);
+
+  // Create empty repo
   await mkdirP(REPO_DIR);
   await util.wrappedExec('git init --bare', { cwd: REPO_DIR });
 
   // Clone repo, and create an initial commit
-  await rmRF(WORK_DIR);
   await mkdirP(WORK_DIR);
   await util.wrappedExec(`git clone "${REPO_DIR}" clone`, { cwd: WORK_DIR });
-  await util.writeFile(path.join(REPO_CLONE_DIR, 'initial1'), 'foobar1');
-  await util.writeFile(path.join(REPO_CLONE_DIR, 'initial2'), 'foobar2');
+  await fs.writeFile(path.join(REPO_CLONE_DIR, 'initial1'), 'foobar1');
+  await fs.writeFile(path.join(REPO_CLONE_DIR, 'initial2'), 'foobar2');
   await mkdirP(path.join(REPO_CLONE_DIR, 'folder'));
-  await util.writeFile(path.join(REPO_CLONE_DIR, 'folder', 'a'), 'foobar1');
-  await util.writeFile(path.join(REPO_CLONE_DIR, 'folder', 'b'), 'foobar2');
+  await fs.writeFile(path.join(REPO_CLONE_DIR, 'folder', 'a'), 'foobar1');
+  await fs.writeFile(path.join(REPO_CLONE_DIR, 'folder', 'b'), 'foobar2');
   await util.wrappedExec(`git add -A .`, { cwd: REPO_CLONE_DIR });
   await util.wrappedExec(`git config user.name "Test User"`, {
     cwd: REPO_CLONE_DIR,
@@ -37,14 +39,13 @@ it('Check that only target deleted files are removed', async () => {
   await util.wrappedExec(`git push origin master`, { cwd: REPO_CLONE_DIR });
 
   // Create dummy data
-  await rmRF(DATA_DIR);
   await mkdirP(path.join(DATA_DIR, 'dummy'));
-  await util.writeFile(path.join(DATA_DIR, 'dummy', 'baz'), 'foobar');
-  await util.writeFile(path.join(DATA_DIR, 'dummy', '.bat'), 'foobar');
+  await fs.writeFile(path.join(DATA_DIR, 'dummy', 'baz'), 'foobar');
+  await fs.writeFile(path.join(DATA_DIR, 'dummy', '.bat'), 'foobar');
 
   // Setup globs
   const globPath = path.join(WORK_DIR, '.globs');
-  await util.writeFile(
+  await fs.writeFile(
     globPath,
     `
     folder/*
@@ -60,7 +61,7 @@ it('Check that only target deleted files are removed', async () => {
       REPO: `ssh://git@git-ssh/git-server/repos/${UNIQUE_DIRNAME}`,
       BRANCH: 'master',
       FOLDER: DATA_DIR,
-      SSH_PRIVATE_KEY: (await util.readFile(util.SSH_PRIVATE_KEY)).toString(),
+      SSH_PRIVATE_KEY: (await fs.readFile(util.SSH_PRIVATE_KEY)).toString(),
       KNOWN_HOSTS_FILE: util.KNOWN_HOSTS,
       CLEAR_GLOBS_FILE: globPath,
     },
