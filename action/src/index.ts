@@ -124,6 +124,10 @@ export interface EnvironmentVariables {
    * * `{msg}` - the commit message for the HEAD of the current branch
    */
   MESSAGE?: string;
+  /**
+   * An optional path to a file to use as a list of globs defining which files
+   * to delete when clearing the target branch
+   */
   CUSTOM_CLEAR_GLOBS?: string;
   /**
    * An optional string in git-check-ref-format to use for tagging the commit
