@@ -1,4 +1,5 @@
 import * as child_process from 'child_process';
+import { stream as fgStream } from 'fast-glob';
 import * as fs from 'fs';
 import gitUrlParse from 'git-url-parse';
 import { homedir, tmpdir } from 'os';
@@ -11,6 +12,7 @@ const copyFile = promisify(fs.copyFile);
 const mkdir = promisify(fs.mkdir);
 const mkdtemp = promisify(fs.mkdtemp);
 const stat = promisify(fs.stat);
+const unlink = promisify(fs.unlink);
 
 export type Console = {
   readonly log: (...msg: unknown[]) => void;
@@ -122,6 +124,11 @@ export interface EnvironmentVariables {
    * * `{msg}` - the commit message for the HEAD of the current branch
    */
   MESSAGE?: string;
+  /**
+   * An optional path to a file to use as a list of globs defining which files
+   * to delete when clearing the target branch
+   */
+  CLEAR_GLOBS_FILE?: string;
   /**
    * An optional string in git-check-ref-format to use for tagging the commit
    */
@@ -515,9 +522,38 @@ export const main = async ({
 
   // // Update contents of branch
   log.log(`##[info] Updating branch ${config.branch}`);
-  await exec(`git rm -rf .`, { log, env: childEnv, cwd: REPO_TEMP }).catch(
-    (err) => {}
-  );
+
+  /**
+   * The list of globs we'll use for clearing
+   */
+  const globs = await (async () => {
+    if (env.CLEAR_GLOBS_FILE) {
+      // We need to use a custom mechanism to clear the files
+      log.log(
+        `##[info] Using custom glob file to clear target branch ${env.CLEAR_GLOBS_FILE}`
+      );
+      const globList = (await readFile(env.CLEAR_GLOBS_FILE))
+        .toString()
+        .split('\n')
+        .map((s) => s.trim())
+        .filter((s) => s !== '');
+      return globList;
+    } else {
+      // Remove all files
+      log.log(`##[info] Removing all files from target branch`);
+      return ['**/*', '!.git'];
+    }
+  })();
+  const filesToDelete = fgStream(globs, {
+    absolute: true,
+    dot: true,
+    followSymbolicLinks: false,
+    cwd: REPO_TEMP,
+  });
+  // Delete all files from the filestream
+  for await (const entry of filesToDelete) {
+    await unlink(entry);
+  }
   const folder = path.resolve(process.cwd(), config.folder);
   log.log(`##[info] Copying all files from ${folder}`);
   // TODO: replace this copy with a node implementation

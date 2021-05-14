@@ -24,6 +24,8 @@
     "typescript": "^3.9.9"
   },
   "dependencies": {
+    "@actions/io": "^1.1.0",
+    "fast-glob": "^3.2.5",
     "isomorphic-git": "^1.8.2"
   }
 }
