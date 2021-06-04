@@ -277,7 +277,10 @@ const writeToProcess = (
     log: Console;
   }
 ) =>
-  new Promise<void>((resolve, reject) => {
+  new Promise<{
+    stdout: string;
+    stderr: string;
+  }>((resolve, reject) => {
     const child = child_process.spawn(command, args, {
       env: opts.env,
       stdio: 'pipe',
@@ -288,19 +291,21 @@ const writeToProcess = (
     }
     child.stdin.end();
     child.on('error', reject);
+    let stdout = '';
     let stderr = '';
     child.stdout.on('data', (data) => {
+      stdout += data.toString();
       /* istanbul ignore next */
       opts.log.log(data.toString());
     });
     child.stderr.on('data', (data) => {
-      stderr += data;
+      stderr += data.toString();
       opts.log.error(data.toString());
     });
     child.on('close', (code) => {
       /* istanbul ignore else */
       if (code === 0) {
-        resolve();
+        resolve({stdout, stderr});
       } else {
         reject(new Error(stderr));
       }
