@@ -12576,6 +12576,8 @@ const main = async ({ env = process.env, log, }) => {
     await exports.exec(`git clone "${config.repo}" "${REPO_TEMP}"`, {
         log,
         env: childEnv,
+    }).then(() => {
+        log.warn('success!');
     }).catch((err) => {
         const s = err.toString();
         /* istanbul ignore else */
