@@ -335,8 +335,8 @@ export const main = async ({
       ? 'git-publish-subdir-action-ssh-agent.sock'
       : path.join(TMP_PATH, 'ssh_agent.sock');
 
-  const sshAgentPath = 'ssh-agent' //os === 'windows' ? 'c://progra~1//git//usr//bin//ssh-agent.exe' : 'ssh-agent';
-  const sshAddPath = 'ssh-add' //os === 'windows' ? 'c://progra~1//git//usr//bin//ssh-add.exe' : 'ssh-add';
+  const sshAgentPath = os === 'windows' ? 'c://progra~1//git//usr//bin//ssh-agent.exe' : 'ssh-agent';
+  const sshAddPath = os === 'windows' ? 'c://progra~1//git//usr//bin//ssh-add.exe' : 'ssh-add';
 
   if (!env.GITHUB_EVENT_PATH) throw new Error('Expected GITHUB_EVENT_PATH');
 
