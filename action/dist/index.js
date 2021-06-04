@@ -12557,23 +12557,13 @@ const main = async ({ env = process.env, log, }) => {
         if (!sshAgentMatch)
             throw new Error('Unexpected output from ssh-agent');
         childEnv.SSH_AGENT_PID = sshAgentMatch[1];
-        log.log(`Adding private key to ssh-agent at ${SSH_AUTH_SOCK}`);
+        log.log(`Adding private key to ssh-agent at ${SSH_AUTH_SOCK} and path ${sshAddPath}`);
         if (os === 'windows') {
-            // Write key to temporary file
-            const tempPrivKeyFolder = await fs_1.promises.mkdtemp(path.join(os_1.tmpdir(), 'git-publish-subdir-action-private-key'));
-            const tempPrivKeyPath = path.join(tempPrivKeyFolder, 'key');
-            await fs_1.promises.writeFile(tempPrivKeyPath, config.privateKey + '\n');
-            await writeToProcess('sha256sum', [tempPrivKeyPath], {
-                data: '',
+            await writeToProcess(sshAddPath, ['-'], {
+                data: config.privateKey + '\n',
                 env: childEnv,
                 log,
             });
-            await writeToProcess(sshAddPath, [tempPrivKeyPath], {
-                data: '',
-                env: childEnv,
-                log,
-            });
-            await fs_1.promises.unlink(tempPrivKeyPath);
         }
         else {
             await writeToProcess('ssh-add', ['-'], {
