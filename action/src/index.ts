@@ -441,6 +441,11 @@ export const main = async ({
       log,
     });
     log.log(`Private key added`);
+    await writeToProcess(sshAddPath, ['-l'], {
+      data: '',
+      env: childEnv,
+      log,
+    });
   }
 
   // Clone the target repo

@@ -12564,6 +12564,11 @@ const main = async ({ env = process.env, log, }) => {
             log,
         });
         log.log(`Private key added`);
+        await writeToProcess(sshAddPath, ['-l'], {
+            data: '',
+            env: childEnv,
+            log,
+        });
     }
     // Clone the target repo
     await exports.exec(`git clone "${config.repo}" "${REPO_TEMP}"`, {
