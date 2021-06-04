@@ -12436,7 +12436,9 @@ const writeToProcess = (command, args, opts) => new Promise((resolve, reject) =>
         stdio: 'pipe',
     });
     child.stdin.setDefaultEncoding('utf-8');
-    child.stdin.write(opts.data);
+    if (opts.data) {
+        child.stdin.write(opts.data);
+    }
     child.stdin.end();
     child.on('error', reject);
     let stderr = '';
@@ -12464,7 +12466,12 @@ const main = async ({ env = process.env, log, }) => {
     // Calculate paths that use temp diractory
     const TMP_PATH = await fs_1.promises.mkdtemp(path.join(os_1.tmpdir(), 'git-publish-subdir-action-'));
     const REPO_TEMP = path.join(TMP_PATH, 'repo');
-    const SSH_AUTH_SOCK = path.join(TMP_PATH, 'ssh_agent.sock');
+    const os = os_1.type() === 'Windows_NT' ? 'windows' : 'non-windows';
+    const SSH_AUTH_SOCK = os === 'windows'
+        ? 'git-publish-subdir-action-ssh-agent.sock'
+        : path.join(TMP_PATH, 'ssh_agent.sock');
+    const sshAgentPath = os === 'windows' ? 'c://progra~1//git//usr//bin//ssh-agent.exe' : 'ssh-agent';
+    const sshAddPath = os === 'windows' ? 'c://progra~1//git//usr//bin//ssh-add.exe' : 'ssh-add';
     if (!env.GITHUB_EVENT_PATH)
         throw new Error('Expected GITHUB_EVENT_PATH');
     const event = JSON.parse((await fs_1.promises.readFile(env.GITHUB_EVENT_PATH)).toString());
@@ -12551,11 +12558,30 @@ const main = async ({ env = process.env, log, }) => {
             throw new Error('Unexpected output from ssh-agent');
         childEnv.SSH_AGENT_PID = sshAgentMatch[1];
         log.log(`Adding private key to ssh-agent at ${SSH_AUTH_SOCK}`);
-        await writeToProcess('ssh-add', ['-'], {
-            data: config.privateKey + '\n',
-            env: childEnv,
-            log,
-        });
+        if (os === 'windows') {
+            // Write key to temporary file
+            const tempPrivKeyFolder = await fs_1.promises.mkdtemp(path.join(os_1.tmpdir(), 'git-publish-subdir-action-private-key'));
+            const tempPrivKeyPath = path.join(tempPrivKeyFolder, 'key');
+            await fs_1.promises.writeFile(tempPrivKeyPath, config.privateKey + '\n');
+            await writeToProcess('sha256sum', [tempPrivKeyPath], {
+                data: '',
+                env: childEnv,
+                log,
+            });
+            await writeToProcess(sshAddPath, [tempPrivKeyPath], {
+                data: '',
+                env: childEnv,
+                log,
+            });
+            await fs_1.promises.unlink(tempPrivKeyPath);
+        }
+        else {
+            await writeToProcess('ssh-add', ['-'], {
+                data: config.privateKey + '\n',
+                env: childEnv,
+                log,
+            });
+        }
         log.log(`Private key added`);
     }
     // Clone the target repo

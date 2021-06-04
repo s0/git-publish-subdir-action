@@ -2,7 +2,7 @@ import * as child_process from 'child_process';
 import { stream as fgStream } from 'fast-glob';
 import fsModule, { promises as fs } from 'fs';
 import gitUrlParse from 'git-url-parse';
-import { homedir, tmpdir } from 'os';
+import { homedir, tmpdir, type as osType } from 'os';
 import * as path from 'path';
 import git from 'isomorphic-git';
 import { mkdirP } from '@actions/io';
@@ -273,7 +273,7 @@ const writeToProcess = (
   args: string[],
   opts: {
     env: { [id: string]: string | undefined };
-    data: string;
+    data?: string;
     log: Console;
   }
 ) =>
@@ -283,7 +283,9 @@ const writeToProcess = (
       stdio: 'pipe',
     });
     child.stdin.setDefaultEncoding('utf-8');
-    child.stdin.write(opts.data);
+    if (opts.data) {
+      child.stdin.write(opts.data);
+    }
     child.stdin.end();
     child.on('error', reject);
     let stderr = '';
@@ -320,7 +322,14 @@ export const main = async ({
     path.join(tmpdir(), 'git-publish-subdir-action-')
   );
   const REPO_TEMP = path.join(TMP_PATH, 'repo');
-  const SSH_AUTH_SOCK = path.join(TMP_PATH, 'ssh_agent.sock');
+  const os = osType() === 'Windows_NT' ? 'windows' : 'non-windows';
+  const SSH_AUTH_SOCK =
+    os === 'windows'
+      ? 'git-publish-subdir-action-ssh-agent.sock'
+      : path.join(TMP_PATH, 'ssh_agent.sock');
+
+  const sshAgentPath = os === 'windows' ? 'c://progra~1//git//usr//bin//ssh-agent.exe' : 'ssh-agent';
+  const sshAddPath = os === 'windows' ? 'c://progra~1//git//usr//bin//ssh-add.exe' : 'ssh-add';
 
   if (!env.GITHUB_EVENT_PATH) throw new Error('Expected GITHUB_EVENT_PATH');
 
@@ -426,11 +435,31 @@ export const main = async ({
     if (!sshAgentMatch) throw new Error('Unexpected output from ssh-agent');
     childEnv.SSH_AGENT_PID = sshAgentMatch[1];
     log.log(`Adding private key to ssh-agent at ${SSH_AUTH_SOCK}`);
-    await writeToProcess('ssh-add', ['-'], {
-      data: config.privateKey + '\n',
-      env: childEnv,
-      log,
-    });
+    if (os === 'windows') {
+      // Write key to temporary file
+      const tempPrivKeyFolder = await fs.mkdtemp(
+        path.join(tmpdir(), 'git-publish-subdir-action-private-key')
+      );
+      const tempPrivKeyPath = path.join(tempPrivKeyFolder, 'key');
+      await fs.writeFile(tempPrivKeyPath, config.privateKey + '\n');
+      await writeToProcess('sha256sum', [tempPrivKeyPath], {
+        data: '',
+        env: childEnv,
+        log,
+      });
+      await writeToProcess(sshAddPath, [tempPrivKeyPath], {
+        data: '',
+        env: childEnv,
+        log,
+      });
+      await fs.unlink(tempPrivKeyPath);
+    } else {
+      await writeToProcess('ssh-add', ['-'], {
+        data: config.privateKey + '\n',
+        env: childEnv,
+        log,
+      });
+    }
     log.log(`Private key added`);
   }
 

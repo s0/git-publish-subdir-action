@@ -49,7 +49,7 @@ jobs:
     - name: Setup SSH Keys
       uses: webfactory/ssh-agent@v0.5.2
       with:
-          ssh-private-key: ${{ secrets.TESTING_PRIVATE_KEY }}
+          ssh-private-key: ${{ secrets.TESTING_PRIVATE_KEY_WINDOWS }}
     - name: Delete existing banch
       run: git push git@github.com:s0/git-publish-subdir-action-tests.git +:refs/heads/branch-windows-latest
     - name: Deploy
@@ -58,7 +58,7 @@ jobs:
         REPO: git@github.com:s0/git-publish-subdir-action-tests.git
         BRANCH: branch-windows-latest
         FOLDER: dummy
-        SSH_PRIVATE_KEY: ${{ secrets.TESTING_PRIVATE_KEY }}
+        SSH_PRIVATE_KEY: ${{ secrets.TESTING_PRIVATE_KEY_WINDOWS }}
   deploy-ssh-no-branch-macos-11:
     name: 'os: [macos-macos-11] - Test deploying to a new branch'
     runs-on: macos-macos-11
