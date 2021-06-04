@@ -12551,7 +12551,7 @@ const main = async ({ env = process.env, log, }) => {
         }
         // Setup ssh-agent with private key
         log.log(`Setting up ssh-agent on ${SSH_AUTH_SOCK}`);
-        const sshAgentMatch = SSH_AGENT_PID_EXTRACT.exec((await exports.exec(`ssh-agent -a ${SSH_AUTH_SOCK}`, { log, env: childEnv }))
+        const sshAgentMatch = SSH_AGENT_PID_EXTRACT.exec((await exports.exec(`${sshAgentPath} -a ${SSH_AUTH_SOCK}`, { log, env: childEnv }))
             .stdout);
         /* istanbul ignore if */
         if (!sshAgentMatch)
