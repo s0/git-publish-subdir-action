@@ -416,6 +416,7 @@ export const main = async ({
   // Environment to pass to children
   const childEnv = Object.assign({}, process.env, {
     SSH_AUTH_SOCK,
+    GIT_SSH: '$((Get-Command ssh).Source)'
   });
 
   if (config.mode === 'ssh') {
