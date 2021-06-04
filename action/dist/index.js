@@ -12536,8 +12536,15 @@ const main = async ({ env = process.env, log, }) => {
     const gitInfo = await getGitInformation();
     // Environment to pass to children
     const childEnv = Object.assign({}, process.env, {
-        SSH_AUTH_SOCK,
+        SSH_AUTH_SOCK
     });
+    if (os === 'windows') {
+        const gitPathQuery = await runProcess('powershell', ['-command', '(Get-Command ssh).Source'], {
+            env: childEnv,
+            log,
+        });
+        childEnv.GIT_SSH = gitPathQuery.stdout.trim();
+    }
     if (config.mode === 'ssh') {
         // Copy over the known_hosts file if set
         let known_hosts = config.knownHostsFile;
