@@ -42,16 +42,16 @@ jobs:
         mkdir dummy
         echo "foobar" > "dummy/baz"
         echo "foobar" > "dummy/.bat"
-    - name: Setup known_hosts
-      run: |
-        mkdir -p ~/.ssh
-        cp action/resources/known_hosts_github.com ~/.ssh/known_hosts
-    - name: Setup SSH Keys
-      uses: webfactory/ssh-agent@v0.5.2
-      with:
-          ssh-private-key: ${{ secrets.TESTING_PRIVATE_KEY_WINDOWS }}
-    - name: Delete existing banch
-      run: git push git@github.com:s0/git-publish-subdir-action-tests.git +:refs/heads/branch-windows-latest
+    # - name: Setup known_hosts
+    #   run: |
+    #     mkdir -p ~/.ssh
+    #     cp action/resources/known_hosts_github.com ~/.ssh/known_hosts
+    # - name: Setup SSH Keys
+    #   uses: webfactory/ssh-agent@v0.5.2
+    #   with:
+    #       ssh-private-key: ${{ secrets.TESTING_PRIVATE_KEY_WINDOWS }}
+    # - name: Delete existing banch
+    #   run: git push git@github.com:s0/git-publish-subdir-action-tests.git +:refs/heads/branch-windows-latest
     - name: Deploy
       uses: ./
       env:
