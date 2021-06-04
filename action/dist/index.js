@@ -12574,7 +12574,7 @@ const main = async ({ env = process.env, log, }) => {
         });
     }
     // Clone the target repo
-    await exports.exec(`git clone "${config.repo}" "${REPO_TEMP}"`, {
+    await runProcess('git', ['clone', config.repo, REPO_TEMP], {
         log,
         env: childEnv,
     }).catch((err) => {
@@ -12593,7 +12593,7 @@ const main = async ({ env = process.env, log, }) => {
     });
     if (!config.squashHistory) {
         // Fetch branch if it exists
-        await runProcess('git', [`fetch`, `-u`, `origin`, `${config.branch}:${config.branch}`], {
+        await runProcess('git', [`fetch`, `-u`, config.repo, `${config.branch}:${config.branch}`], {
             log,
             env: childEnv,
             cwd: REPO_TEMP,

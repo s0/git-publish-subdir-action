@@ -475,7 +475,7 @@ export const main = async ({
 
   if (!config.squashHistory) {
     // Fetch branch if it exists
-    await runProcess('git', [`fetch`, `-u`, `origin`, `${config.branch}:${config.branch}`], {
+    await runProcess('git', [`fetch`, `-u`, config.repo, `${config.branch}:${config.branch}`], {
       log,
       env: childEnv,
       cwd: REPO_TEMP,
