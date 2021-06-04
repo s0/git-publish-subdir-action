@@ -12473,8 +12473,8 @@ const main = async ({ env = process.env, log, }) => {
     const SSH_AUTH_SOCK = os === 'windows'
         ? 'git-publish-subdir-action-ssh-agent.sock'
         : path.join(TMP_PATH, 'ssh_agent.sock');
-    const sshAgentPath = os === 'windows' ? 'c://progra~1//git//usr//bin//ssh-agent.exe' : 'ssh-agent';
-    const sshAddPath = os === 'windows' ? 'c://progra~1//git//usr//bin//ssh-add.exe' : 'ssh-add';
+    const sshAgentPath = 'ssh-agent'; //os === 'windows' ? 'c://progra~1//git//usr//bin//ssh-agent.exe' : 'ssh-agent';
+    const sshAddPath = 'ssh-add'; //os === 'windows' ? 'c://progra~1//git//usr//bin//ssh-add.exe' : 'ssh-add';
     if (!env.GITHUB_EVENT_PATH)
         throw new Error('Expected GITHUB_EVENT_PATH');
     const event = JSON.parse((await fs_1.promises.readFile(env.GITHUB_EVENT_PATH)).toString());
@@ -12539,6 +12539,7 @@ const main = async ({ env = process.env, log, }) => {
         SSH_AUTH_SOCK
     });
     if (os === 'windows') {
+        log.log(`Determining ssh binary to use for git on windows`);
         const gitPathQuery = await runProcess('powershell', ['-command', '(Get-Command ssh).Source'], {
             env: childEnv,
             log,
