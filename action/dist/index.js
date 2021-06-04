@@ -12430,7 +12430,7 @@ const genConfig = (env = process.env) => {
     }
     throw new Error('Unsupported REPO URL');
 };
-const writeToProcess = (command, args, opts) => new Promise((resolve, reject) => {
+const runProcess = (command, args, opts) => new Promise((resolve, reject) => {
     const child = child_process.spawn(command, args, {
         env: opts.env,
         stdio: 'pipe',
@@ -12560,13 +12560,13 @@ const main = async ({ env = process.env, log, }) => {
             throw new Error('Unexpected output from ssh-agent');
         childEnv.SSH_AGENT_PID = sshAgentMatch[1];
         log.log(`Adding private key to ssh-agent at ${SSH_AUTH_SOCK} and path ${sshAddPath}`);
-        await writeToProcess(sshAddPath, ['-'], {
+        await runProcess(sshAddPath, ['-'], {
             data: config.privateKey + '\n',
             env: childEnv,
             log,
         });
         log.log(`Private key added`);
-        await writeToProcess(sshAddPath, ['-l'], {
+        await runProcess(sshAddPath, ['-l'], {
             data: '',
             env: childEnv,
             log,
