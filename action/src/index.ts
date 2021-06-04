@@ -275,6 +275,7 @@ const runProcess = (
     env: { [id: string]: string | undefined };
     data?: string;
     log: Console;
+    cwd?: string;
   }
 ) =>
   new Promise<{
@@ -284,6 +285,7 @@ const runProcess = (
     const child = child_process.spawn(command, args, {
       env: opts.env,
       stdio: 'pipe',
+      cwd: opts.cwd,
     });
     child.stdin.setDefaultEncoding('utf-8');
     if (opts.data) {
@@ -457,8 +459,6 @@ export const main = async ({
   await runProcess('git', ['clone', config.repo, REPO_TEMP], {
     log,
     env: childEnv,
-  }).then(() => {
-    log.warn('success!');
   }).catch((err) => {
     const s = err.toString();
     /* istanbul ignore else */
@@ -475,7 +475,7 @@ export const main = async ({
 
   if (!config.squashHistory) {
     // Fetch branch if it exists
-    await exec(`git fetch -u origin ${config.branch}:${config.branch}`, {
+    await runProcess('git', [`fetch`, `-u`, `origin`, `${config.branch}:${config.branch}`], {
       log,
       env: childEnv,
       cwd: REPO_TEMP,
