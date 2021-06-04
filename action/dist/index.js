@@ -12558,20 +12558,11 @@ const main = async ({ env = process.env, log, }) => {
             throw new Error('Unexpected output from ssh-agent');
         childEnv.SSH_AGENT_PID = sshAgentMatch[1];
         log.log(`Adding private key to ssh-agent at ${SSH_AUTH_SOCK} and path ${sshAddPath}`);
-        if (os === 'windows') {
-            await writeToProcess(sshAddPath, ['-'], {
-                data: config.privateKey + '\n',
-                env: childEnv,
-                log,
-            });
-        }
-        else {
-            await writeToProcess('ssh-add', ['-'], {
-                data: config.privateKey + '\n',
-                env: childEnv,
-                log,
-            });
-        }
+        await writeToProcess(sshAddPath, ['-'], {
+            data: config.privateKey + '\n',
+            env: childEnv,
+            log,
+        });
         log.log(`Private key added`);
     }
     // Clone the target repo
