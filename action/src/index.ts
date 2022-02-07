@@ -390,8 +390,8 @@ export const main = async ({
       };
     }
     return {
-      // Use slice to remove the trailing newline
-      commitMessage: commit.commit.message.slice(0, -1),
+      // Use trim to remove the trailing newline
+      commitMessage: commit.commit.message.trim(),
       sha: commit.oid,
     };
   };
