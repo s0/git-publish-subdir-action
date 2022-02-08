@@ -54,6 +54,25 @@ module.exports =
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -63,19 +82,15 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
-    result["default"] = mod;
-    return result;
-};
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.findInPath = exports.which = exports.mkdirP = exports.rmRF = exports.mv = exports.cp = void 0;
+const assert_1 = __webpack_require__(59);
 const childProcess = __importStar(__webpack_require__(129));
 const path = __importStar(__webpack_require__(622));
 const util_1 = __webpack_require__(669);
 const ioUtil = __importStar(__webpack_require__(672));
 const exec = util_1.promisify(childProcess.exec);
+const execFile = util_1.promisify(childProcess.execFile);
 /**
  * Copies a file or folder.
  * Based off of shelljs - https://github.com/shelljs/shelljs/blob/9237f66c52e5daa40458f94f9565e18e8132f5a6/src/cp.js
@@ -86,14 +101,14 @@ const exec = util_1.promisify(childProcess.exec);
  */
 function cp(source, dest, options = {}) {
     return __awaiter(this, void 0, void 0, function* () {
-        const { force, recursive } = readCopyOptions(options);
+        const { force, recursive, copySourceDirectory } = readCopyOptions(options);
         const destStat = (yield ioUtil.exists(dest)) ? yield ioUtil.stat(dest) : null;
         // Dest is an existing file, but not forcing
         if (destStat && destStat.isFile() && !force) {
             return;
         }
         // If dest is an existing directory, should copy inside.
-        const newDest = destStat && destStat.isDirectory()
+        const newDest = destStat && destStat.isDirectory() && copySourceDirectory
             ? path.join(dest, path.basename(source))
             : dest;
         if (!(yield ioUtil.exists(source))) {
@@ -158,12 +173,22 @@ function rmRF(inputPath) {
         if (ioUtil.IS_WINDOWS) {
             // Node doesn't provide a delete operation, only an unlink function. This means that if the file is being used by another
             // program (e.g. antivirus), it won't be deleted. To address this, we shell out the work to rd/del.
+            // Check for invalid characters
+            // https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file
+            if (/[*"<>|]/.test(inputPath)) {
+                throw new Error('File path must not contain `*`, `"`, `<`, `>` or `|` on Windows');
+            }
             try {
+                const cmdPath = ioUtil.getCmdPath();
                 if (yield ioUtil.isDirectory(inputPath, true)) {
-                    yield exec(`rd /s /q "${inputPath}"`);
+                    yield exec(`${cmdPath} /s /c "rd /s /q "%inputPath%""`, {
+                        env: { inputPath }
+                    });
                 }
                 else {
-                    yield exec(`del /f /a "${inputPath}"`);
+                    yield exec(`${cmdPath} /s /c "del /f /a "%inputPath%""`, {
+                        env: { inputPath }
+                    });
                 }
             }
             catch (err) {
@@ -196,7 +221,7 @@ function rmRF(inputPath) {
                 return;
             }
             if (isDir) {
-                yield exec(`rm -rf "${inputPath}"`);
+                yield execFile(`rm`, [`-rf`, `${inputPath}`]);
             }
             else {
                 yield ioUtil.unlink(inputPath);
@@ -214,7 +239,8 @@ exports.rmRF = rmRF;
  */
 function mkdirP(fsPath) {
     return __awaiter(this, void 0, void 0, function* () {
-        yield ioUtil.mkdirP(fsPath);
+        assert_1.ok(fsPath, 'a path argument must be provided');
+        yield ioUtil.mkdir(fsPath, { recursive: true });
     });
 }
 exports.mkdirP = mkdirP;
@@ -312,7 +338,10 @@ exports.findInPath = findInPath;
 function readCopyOptions(options) {
     const force = options.force == null ? true : options.force;
     const recursive = Boolean(options.recursive);
-    return { force, recursive };
+    const copySourceDirectory = options.copySourceDirectory == null
+        ? true
+        : Boolean(options.copySourceDirectory);
+    return { force, recursive, copySourceDirectory };
 }
 function cpDirRecursive(sourceDir, destDir, currentDepth, force) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -420,6 +449,35 @@ class Provider {
     }
 }
 exports.default = Provider;
+
+
+/***/ }),
+
+/***/ 36:
+/***/ (function(__unusedmodule, exports) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.removeDuplicateSlashes = exports.transform = void 0;
+/**
+ * Matches a sequence of two or more consecutive slashes, excluding the first two slashes at the beginning of the string.
+ * The latter is due to the presence of the device path at the beginning of the UNC path.
+ * @todo rewrite to negative lookbehind with the next major release.
+ */
+const DOUBLE_SLASH_RE = /(?!^)\/{2,}/g;
+function transform(patterns) {
+    return patterns.map((pattern) => removeDuplicateSlashes(pattern));
+}
+exports.transform = transform;
+/**
+ * This package only works with forward slashes as a path separator.
+ * Because of this, we cannot use the standard `path.normalize` method, because on Windows platform it will use of backslashes.
+ */
+function removeDuplicateSlashes(pattern) {
+    return pattern.replace(DOUBLE_SLASH_RE, '/');
+}
+exports.removeDuplicateSlashes = removeDuplicateSlashes;
 
 
 /***/ }),
@@ -537,100 +595,156 @@ module.exports = gitUp;
 /***/ }),
 
 /***/ 53:
-/***/ (function(module, __unusedexports, __webpack_require__) {
+/***/ (function(module) {
 
 "use strict";
 
-// TODO: Use the `URL` global when targeting Node.js 10
-const URLParser = typeof URL === 'undefined' ? __webpack_require__(835).URL : URL;
+
+// https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
+const DATA_URL_DEFAULT_MIME_TYPE = 'text/plain';
+const DATA_URL_DEFAULT_CHARSET = 'us-ascii';
 
 const testParameter = (name, filters) => {
 	return filters.some(filter => filter instanceof RegExp ? filter.test(name) : filter === name);
 };
 
-module.exports = (urlString, opts) => {
-	opts = Object.assign({
+const normalizeDataURL = (urlString, {stripHash}) => {
+	const match = /^data:(?<type>[^,]*?),(?<data>[^#]*?)(?:#(?<hash>.*))?$/.exec(urlString);
+
+	if (!match) {
+		throw new Error(`Invalid URL: ${urlString}`);
+	}
+
+	let {type, data, hash} = match.groups;
+	const mediaType = type.split(';');
+	hash = stripHash ? '' : hash;
+
+	let isBase64 = false;
+	if (mediaType[mediaType.length - 1] === 'base64') {
+		mediaType.pop();
+		isBase64 = true;
+	}
+
+	// Lowercase MIME type
+	const mimeType = (mediaType.shift() || '').toLowerCase();
+	const attributes = mediaType
+		.map(attribute => {
+			let [key, value = ''] = attribute.split('=').map(string => string.trim());
+
+			// Lowercase `charset`
+			if (key === 'charset') {
+				value = value.toLowerCase();
+
+				if (value === DATA_URL_DEFAULT_CHARSET) {
+					return '';
+				}
+			}
+
+			return `${key}${value ? `=${value}` : ''}`;
+		})
+		.filter(Boolean);
+
+	const normalizedMediaType = [
+		...attributes
+	];
+
+	if (isBase64) {
+		normalizedMediaType.push('base64');
+	}
+
+	if (normalizedMediaType.length !== 0 || (mimeType && mimeType !== DATA_URL_DEFAULT_MIME_TYPE)) {
+		normalizedMediaType.unshift(mimeType);
+	}
+
+	return `data:${normalizedMediaType.join(';')},${isBase64 ? data.trim() : data}${hash ? `#${hash}` : ''}`;
+};
+
+const normalizeUrl = (urlString, options) => {
+	options = {
 		defaultProtocol: 'http:',
 		normalizeProtocol: true,
 		forceHttp: false,
 		forceHttps: false,
-		stripHash: true,
+		stripAuthentication: true,
+		stripHash: false,
+		stripTextFragment: true,
 		stripWWW: true,
 		removeQueryParameters: [/^utm_\w+/i],
 		removeTrailingSlash: true,
+		removeSingleSlash: true,
 		removeDirectoryIndex: false,
-		sortQueryParameters: true
-	}, opts);
-
-	// Backwards compatibility
-	if (Reflect.has(opts, 'normalizeHttps')) {
-		opts.forceHttp = opts.normalizeHttps;
-	}
-
-	if (Reflect.has(opts, 'normalizeHttp')) {
-		opts.forceHttps = opts.normalizeHttp;
-	}
-
-	if (Reflect.has(opts, 'stripFragment')) {
-		opts.stripHash = opts.stripFragment;
-	}
+		sortQueryParameters: true,
+		...options
+	};
 
 	urlString = urlString.trim();
+
+	// Data URL
+	if (/^data:/i.test(urlString)) {
+		return normalizeDataURL(urlString, options);
+	}
+
+	if (/^view-source:/i.test(urlString)) {
+		throw new Error('`view-source:` is not supported as it is a non-standard protocol');
+	}
 
 	const hasRelativeProtocol = urlString.startsWith('//');
 	const isRelativeUrl = !hasRelativeProtocol && /^\.*\//.test(urlString);
 
 	// Prepend protocol
 	if (!isRelativeUrl) {
-		urlString = urlString.replace(/^(?!(?:\w+:)?\/\/)|^\/\//, opts.defaultProtocol);
+		urlString = urlString.replace(/^(?!(?:\w+:)?\/\/)|^\/\//, options.defaultProtocol);
 	}
 
-	const urlObj = new URLParser(urlString);
+	const urlObj = new URL(urlString);
 
-	if (opts.forceHttp && opts.forceHttps) {
+	if (options.forceHttp && options.forceHttps) {
 		throw new Error('The `forceHttp` and `forceHttps` options cannot be used together');
 	}
 
-	if (opts.forceHttp && urlObj.protocol === 'https:') {
+	if (options.forceHttp && urlObj.protocol === 'https:') {
 		urlObj.protocol = 'http:';
 	}
 
-	if (opts.forceHttps && urlObj.protocol === 'http:') {
+	if (options.forceHttps && urlObj.protocol === 'http:') {
 		urlObj.protocol = 'https:';
 	}
 
+	// Remove auth
+	if (options.stripAuthentication) {
+		urlObj.username = '';
+		urlObj.password = '';
+	}
+
 	// Remove hash
-	if (opts.stripHash) {
+	if (options.stripHash) {
 		urlObj.hash = '';
+	} else if (options.stripTextFragment) {
+		urlObj.hash = urlObj.hash.replace(/#?:~:text.*?$/i, '');
 	}
 
 	// Remove duplicate slashes if not preceded by a protocol
 	if (urlObj.pathname) {
-		// TODO: Use the following instead when targeting Node.js 10
-		// `urlObj.pathname = urlObj.pathname.replace(/(?<!https?:)\/{2,}/g, '/');`
-		urlObj.pathname = urlObj.pathname.replace(/((?![https?:]).)\/{2,}/g, (_, p1) => {
-			if (/^(?!\/)/g.test(p1)) {
-				return `${p1}/`;
-			}
-			return '/';
-		});
+		urlObj.pathname = urlObj.pathname.replace(/(?<!\b(?:[a-z][a-z\d+\-.]{1,50}:))\/{2,}/g, '/');
 	}
 
 	// Decode URI octets
 	if (urlObj.pathname) {
-		urlObj.pathname = decodeURI(urlObj.pathname);
+		try {
+			urlObj.pathname = decodeURI(urlObj.pathname);
+		} catch (_) {}
 	}
 
 	// Remove directory index
-	if (opts.removeDirectoryIndex === true) {
-		opts.removeDirectoryIndex = [/^index\.[a-z]+$/];
+	if (options.removeDirectoryIndex === true) {
+		options.removeDirectoryIndex = [/^index\.[a-z]+$/];
 	}
 
-	if (Array.isArray(opts.removeDirectoryIndex) && opts.removeDirectoryIndex.length > 0) {
+	if (Array.isArray(options.removeDirectoryIndex) && options.removeDirectoryIndex.length > 0) {
 		let pathComponents = urlObj.pathname.split('/');
 		const lastComponent = pathComponents[pathComponents.length - 1];
 
-		if (testParameter(lastComponent, opts.removeDirectoryIndex)) {
+		if (testParameter(lastComponent, options.removeDirectoryIndex)) {
 			pathComponents = pathComponents.slice(0, pathComponents.length - 1);
 			urlObj.pathname = pathComponents.slice(1).join('/') + '/';
 		}
@@ -641,44 +755,65 @@ module.exports = (urlString, opts) => {
 		urlObj.hostname = urlObj.hostname.replace(/\.$/, '');
 
 		// Remove `www.`
-		// eslint-disable-next-line no-useless-escape
-		if (opts.stripWWW && /^www\.([a-z\-\d]{2,63})\.([a-z\.]{2,5})$/.test(urlObj.hostname)) {
-			// Each label should be max 63 at length (min: 2).
-			// The extension should be max 5 at length (min: 2).
+		if (options.stripWWW && /^www\.(?!www\.)(?:[a-z\-\d]{1,63})\.(?:[a-z.\-\d]{2,63})$/.test(urlObj.hostname)) {
+			// Each label should be max 63 at length (min: 1).
 			// Source: https://en.wikipedia.org/wiki/Hostname#Restrictions_on_valid_host_names
+			// Each TLD should be up to 63 characters long (min: 2).
+			// It is technically possible to have a single character TLD, but none currently exist.
 			urlObj.hostname = urlObj.hostname.replace(/^www\./, '');
 		}
 	}
 
 	// Remove query unwanted parameters
-	if (Array.isArray(opts.removeQueryParameters)) {
+	if (Array.isArray(options.removeQueryParameters)) {
 		for (const key of [...urlObj.searchParams.keys()]) {
-			if (testParameter(key, opts.removeQueryParameters)) {
+			if (testParameter(key, options.removeQueryParameters)) {
 				urlObj.searchParams.delete(key);
 			}
 		}
 	}
 
+	if (options.removeQueryParameters === true) {
+		urlObj.search = '';
+	}
+
 	// Sort query parameters
-	if (opts.sortQueryParameters) {
+	if (options.sortQueryParameters) {
 		urlObj.searchParams.sort();
 	}
+
+	if (options.removeTrailingSlash) {
+		urlObj.pathname = urlObj.pathname.replace(/\/$/, '');
+	}
+
+	const oldUrlString = urlString;
 
 	// Take advantage of many of the Node `url` normalizations
 	urlString = urlObj.toString();
 
-	// Remove ending `/`
-	if (opts.removeTrailingSlash || urlObj.pathname === '/') {
+	if (!options.removeSingleSlash && urlObj.pathname === '/' && !oldUrlString.endsWith('/') && urlObj.hash === '') {
+		urlString = urlString.replace(/\/$/, '');
+	}
+
+	// Remove ending `/` unless removeSingleSlash is false
+	if ((options.removeTrailingSlash || urlObj.pathname === '/') && urlObj.hash === '' && options.removeSingleSlash) {
 		urlString = urlString.replace(/\/$/, '');
 	}
 
 	// Restore relative protocol, if applicable
-	if (hasRelativeProtocol && !opts.normalizeProtocol) {
+	if (hasRelativeProtocol && !options.normalizeProtocol) {
 		urlString = urlString.replace(/^http:\/\//, '//');
+	}
+
+	// Remove http/https
+	if (options.stripProtocol) {
+		urlString = urlString.replace(/^(?:https?:)?\/\//, '');
 	}
 
 	return urlString;
 };
+
+module.exports = normalizeUrl;
 
 
 /***/ }),
@@ -1440,7 +1575,7 @@ exports.default = ProviderSync;
 /* istanbul ignore file - this file is used purely as an entry-point */
 Object.defineProperty(exports, "__esModule", { value: true });
 const _1 = __webpack_require__(593);
-_1.main({
+(0, _1.main)({
     log: console,
     env: process.env,
 }).catch((err) => {
@@ -2957,8 +3092,11 @@ SafeBuffer.allocUnsafeSlow = function (size) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.IS_SUPPORT_READDIR_WITH_FILE_TYPES = void 0;
 const NODE_PROCESS_VERSION_PARTS = process.versions.node.split('.');
-const MAJOR_VERSION = parseInt(NODE_PROCESS_VERSION_PARTS[0], 10);
-const MINOR_VERSION = parseInt(NODE_PROCESS_VERSION_PARTS[1], 10);
+if (NODE_PROCESS_VERSION_PARTS[0] === undefined || NODE_PROCESS_VERSION_PARTS[1] === undefined) {
+    throw new Error(`Unexpected behavior. The 'process.versions.node' variable has invalid value: ${process.versions.node}`);
+}
+const MAJOR_VERSION = Number.parseInt(NODE_PROCESS_VERSION_PARTS[0], 10);
+const MINOR_VERSION = Number.parseInt(NODE_PROCESS_VERSION_PARTS[1], 10);
 const SUPPORTED_MAJOR_VERSION = 10;
 const SUPPORTED_MINOR_VERSION = 10;
 const IS_MATCHED_BY_MAJOR = MAJOR_VERSION > SUPPORTED_MAJOR_VERSION;
@@ -3378,15 +3516,17 @@ const utils = __webpack_require__(933);
 const common = __webpack_require__(185);
 function read(directory, settings, callback) {
     if (!settings.stats && constants_1.IS_SUPPORT_READDIR_WITH_FILE_TYPES) {
-        return readdirWithFileTypes(directory, settings, callback);
+        readdirWithFileTypes(directory, settings, callback);
+        return;
     }
-    return readdir(directory, settings, callback);
+    readdir(directory, settings, callback);
 }
 exports.read = read;
 function readdirWithFileTypes(directory, settings, callback) {
     settings.fs.readdir(directory, { withFileTypes: true }, (readdirError, dirents) => {
         if (readdirError !== null) {
-            return callFailureCallback(callback, readdirError);
+            callFailureCallback(callback, readdirError);
+            return;
         }
         const entries = dirents.map((dirent) => ({
             dirent,
@@ -3394,12 +3534,14 @@ function readdirWithFileTypes(directory, settings, callback) {
             path: common.joinPathSegments(directory, dirent.name, settings.pathSegmentSeparator)
         }));
         if (!settings.followSymbolicLinks) {
-            return callSuccessCallback(callback, entries);
+            callSuccessCallback(callback, entries);
+            return;
         }
         const tasks = entries.map((entry) => makeRplTaskEntry(entry, settings));
         rpl(tasks, (rplError, rplEntries) => {
             if (rplError !== null) {
-                return callFailureCallback(callback, rplError);
+                callFailureCallback(callback, rplError);
+                return;
             }
             callSuccessCallback(callback, rplEntries);
         });
@@ -3409,46 +3551,54 @@ exports.readdirWithFileTypes = readdirWithFileTypes;
 function makeRplTaskEntry(entry, settings) {
     return (done) => {
         if (!entry.dirent.isSymbolicLink()) {
-            return done(null, entry);
+            done(null, entry);
+            return;
         }
         settings.fs.stat(entry.path, (statError, stats) => {
             if (statError !== null) {
                 if (settings.throwErrorOnBrokenSymbolicLink) {
-                    return done(statError);
+                    done(statError);
+                    return;
                 }
-                return done(null, entry);
+                done(null, entry);
+                return;
             }
             entry.dirent = utils.fs.createDirentFromStats(entry.name, stats);
-            return done(null, entry);
+            done(null, entry);
         });
     };
 }
 function readdir(directory, settings, callback) {
     settings.fs.readdir(directory, (readdirError, names) => {
         if (readdirError !== null) {
-            return callFailureCallback(callback, readdirError);
+            callFailureCallback(callback, readdirError);
+            return;
         }
-        const filepaths = names.map((name) => common.joinPathSegments(directory, name, settings.pathSegmentSeparator));
-        const tasks = filepaths.map((filepath) => {
-            return (done) => fsStat.stat(filepath, settings.fsStatSettings, done);
+        const tasks = names.map((name) => {
+            const path = common.joinPathSegments(directory, name, settings.pathSegmentSeparator);
+            return (done) => {
+                fsStat.stat(path, settings.fsStatSettings, (error, stats) => {
+                    if (error !== null) {
+                        done(error);
+                        return;
+                    }
+                    const entry = {
+                        name,
+                        path,
+                        dirent: utils.fs.createDirentFromStats(name, stats)
+                    };
+                    if (settings.stats) {
+                        entry.stats = stats;
+                    }
+                    done(null, entry);
+                });
+            };
         });
-        rpl(tasks, (rplError, results) => {
+        rpl(tasks, (rplError, entries) => {
             if (rplError !== null) {
-                return callFailureCallback(callback, rplError);
+                callFailureCallback(callback, rplError);
+                return;
             }
-            const entries = [];
-            names.forEach((name, index) => {
-                const stats = results[index];
-                const entry = {
-                    name,
-                    path: filepaths[index],
-                    dirent: utils.fs.createDirentFromStats(name, stats)
-                };
-                if (settings.stats) {
-                    entry.stats = stats;
-                }
-                entries.push(entry);
-            });
             callSuccessCallback(callback, entries);
         });
     });
@@ -4585,7 +4735,8 @@ const settings_1 = __webpack_require__(872);
 exports.Settings = settings_1.default;
 function stat(path, optionsOrSettingsOrCallback, callback) {
     if (typeof optionsOrSettingsOrCallback === 'function') {
-        return async.read(path, getSettings(), optionsOrSettingsOrCallback);
+        async.read(path, getSettings(), optionsOrSettingsOrCallback);
+        return;
     }
     async.read(path, getSettings(optionsOrSettingsOrCallback), callback);
 }
@@ -4822,7 +4973,7 @@ function gitUrlParse(url) {
         urlInfo.full_name = urlInfo.owner + "/" + urlInfo.name;
     }
 
-    var bitbucket = /(projects|users)\/(.*?)\/repos\/(.*?)\/(raw|browse)(?:\/(?:$|(.+?)))?$/;
+    var bitbucket = /(projects|users)\/(.*?)\/repos\/(.*?)((\/.*$)|$)/;
     var matches = bitbucket.exec(urlInfo.pathname);
     if (matches != null) {
         urlInfo.source = "bitbucket-server";
@@ -4834,8 +4985,18 @@ function gitUrlParse(url) {
 
         urlInfo.organization = urlInfo.owner;
         urlInfo.name = matches[3];
-        urlInfo.filepathtype = matches[4];
-        urlInfo.filepath = matches[5];
+
+        splits = matches[4].split("/");
+        if (splits.length > 1) {
+            if (["raw", "browse"].indexOf(splits[1]) >= 0) {
+                urlInfo.filepathtype = splits[1];
+                if (splits.length > 2) {
+                    urlInfo.filepath = splits.slice(2).join('/');
+                }
+            } else if (splits[1] === "commits" && splits.length > 2) {
+                urlInfo.commit = splits[2];
+            }
+        }
         urlInfo.full_name = urlInfo.owner + "/" + urlInfo.name;
 
         if (urlInfo.query.at) {
@@ -5835,7 +5996,8 @@ class AsyncReader extends reader_1.default {
     _worker(item, done) {
         this._scandir(item.directory, this._settings.fsScandirSettings, (error, entries) => {
             if (error !== null) {
-                return done(error, undefined);
+                done(error, undefined);
+                return;
             }
             for (const entry of entries) {
                 this._handleEntry(entry, item.base);
@@ -5863,7 +6025,7 @@ class AsyncReader extends reader_1.default {
             this._emitEntry(entry);
         }
         if (entry.dirent.isDirectory() && common.isAppliedFilter(this._settings.deepFilter, entry)) {
-            this._pushToQueue(fullpath, entry.path);
+            this._pushToQueue(fullpath, base === undefined ? undefined : entry.path);
         }
     }
     _emitEntry(entry) {
@@ -6110,8 +6272,128 @@ exports.default = Settings;
 
 var isExtglob = __webpack_require__(888);
 var chars = { '{': '}', '(': ')', '[': ']'};
-var strictRegex = /\\(.)|(^!|\*|[\].+)]\?|\[[^\\\]]+\]|\{[^\\}]+\}|\(\?[:!=][^\\)]+\)|\([^|]+\|[^\\)]+\))/;
-var relaxedRegex = /\\(.)|(^!|[*?{}()[\]]|\(\?)/;
+var strictCheck = function(str) {
+  if (str[0] === '!') {
+    return true;
+  }
+  var index = 0;
+  var pipeIndex = -2;
+  var closeSquareIndex = -2;
+  var closeCurlyIndex = -2;
+  var closeParenIndex = -2;
+  var backSlashIndex = -2;
+  while (index < str.length) {
+    if (str[index] === '*') {
+      return true;
+    }
+
+    if (str[index + 1] === '?' && /[\].+)]/.test(str[index])) {
+      return true;
+    }
+
+    if (closeSquareIndex !== -1 && str[index] === '[' && str[index + 1] !== ']') {
+      if (closeSquareIndex < index) {
+        closeSquareIndex = str.indexOf(']', index);
+      }
+      if (closeSquareIndex > index) {
+        if (backSlashIndex === -1 || backSlashIndex > closeSquareIndex) {
+          return true;
+        }
+        backSlashIndex = str.indexOf('\\', index);
+        if (backSlashIndex === -1 || backSlashIndex > closeSquareIndex) {
+          return true;
+        }
+      }
+    }
+
+    if (closeCurlyIndex !== -1 && str[index] === '{' && str[index + 1] !== '}') {
+      closeCurlyIndex = str.indexOf('}', index);
+      if (closeCurlyIndex > index) {
+        backSlashIndex = str.indexOf('\\', index);
+        if (backSlashIndex === -1 || backSlashIndex > closeCurlyIndex) {
+          return true;
+        }
+      }
+    }
+
+    if (closeParenIndex !== -1 && str[index] === '(' && str[index + 1] === '?' && /[:!=]/.test(str[index + 2]) && str[index + 3] !== ')') {
+      closeParenIndex = str.indexOf(')', index);
+      if (closeParenIndex > index) {
+        backSlashIndex = str.indexOf('\\', index);
+        if (backSlashIndex === -1 || backSlashIndex > closeParenIndex) {
+          return true;
+        }
+      }
+    }
+
+    if (pipeIndex !== -1 && str[index] === '(' && str[index + 1] !== '|') {
+      if (pipeIndex < index) {
+        pipeIndex = str.indexOf('|', index);
+      }
+      if (pipeIndex !== -1 && str[pipeIndex + 1] !== ')') {
+        closeParenIndex = str.indexOf(')', pipeIndex);
+        if (closeParenIndex > pipeIndex) {
+          backSlashIndex = str.indexOf('\\', pipeIndex);
+          if (backSlashIndex === -1 || backSlashIndex > closeParenIndex) {
+            return true;
+          }
+        }
+      }
+    }
+
+    if (str[index] === '\\') {
+      var open = str[index + 1];
+      index += 2;
+      var close = chars[open];
+
+      if (close) {
+        var n = str.indexOf(close, index);
+        if (n !== -1) {
+          index = n + 1;
+        }
+      }
+
+      if (str[index] === '!') {
+        return true;
+      }
+    } else {
+      index++;
+    }
+  }
+  return false;
+};
+
+var relaxedCheck = function(str) {
+  if (str[0] === '!') {
+    return true;
+  }
+  var index = 0;
+  while (index < str.length) {
+    if (/[*?{}()[\]]/.test(str[index])) {
+      return true;
+    }
+
+    if (str[index] === '\\') {
+      var open = str[index + 1];
+      index += 2;
+      var close = chars[open];
+
+      if (close) {
+        var n = str.indexOf(close, index);
+        if (n !== -1) {
+          index = n + 1;
+        }
+      }
+
+      if (str[index] === '!') {
+        return true;
+      }
+    } else {
+      index++;
+    }
+  }
+  return false;
+};
 
 module.exports = function isGlob(str, options) {
   if (typeof str !== 'string' || str === '') {
@@ -6122,32 +6404,14 @@ module.exports = function isGlob(str, options) {
     return true;
   }
 
-  var regex = strictRegex;
-  var match;
+  var check = strictCheck;
 
-  // optionally relax regex
+  // optionally relax check
   if (options && options.strict === false) {
-    regex = relaxedRegex;
+    check = relaxedCheck;
   }
 
-  while ((match = regex.exec(str))) {
-    if (match[2]) return true;
-    var idx = match.index + match[0].length;
-
-    // if an open bracket/brace/paren is escaped,
-    // set the index to the next closing character
-    var open = match[1];
-    var close = open ? chars[open] : null;
-    if (open && close) {
-      var n = str.indexOf(close, idx);
-      if (n !== -1) {
-        idx = n + 1;
-      }
-    }
-
-    str = str.slice(idx);
-  }
-  return false;
+  return check(str);
 };
 
 
@@ -6390,6 +6654,40 @@ picomatch.parse = (pattern, options) => {
 picomatch.scan = (input, options) => scan(input, options);
 
 /**
+ * Compile a regular expression from the `state` object returned by the
+ * [parse()](#parse) method.
+ *
+ * @param {Object} `state`
+ * @param {Object} `options`
+ * @param {Boolean} `returnOutput` Intended for implementors, this argument allows you to return the raw output from the parser.
+ * @param {Boolean} `returnState` Adds the state to a `state` property on the returned regex. Useful for implementors and debugging.
+ * @return {RegExp}
+ * @api public
+ */
+
+picomatch.compileRe = (state, options, returnOutput = false, returnState = false) => {
+  if (returnOutput === true) {
+    return state.output;
+  }
+
+  const opts = options || {};
+  const prepend = opts.contains ? '' : '^';
+  const append = opts.contains ? '' : '$';
+
+  let source = `${prepend}(?:${state.output})${append}`;
+  if (state && state.negated === true) {
+    source = `^(?!${source}).*$`;
+  }
+
+  const regex = picomatch.toRegex(source, options);
+  if (returnState === true) {
+    regex.state = state;
+  }
+
+  return regex;
+};
+
+/**
  * Create a regular expression from a parsed glob pattern.
  *
  * ```js
@@ -6402,56 +6700,25 @@ picomatch.scan = (input, options) => scan(input, options);
  * ```
  * @param {String} `state` The object returned from the `.parse` method.
  * @param {Object} `options`
+ * @param {Boolean} `returnOutput` Implementors may use this argument to return the compiled output, instead of a regular expression. This is not exposed on the options to prevent end-users from mutating the result.
+ * @param {Boolean} `returnState` Implementors may use this argument to return the state from the parsed glob with the returned regular expression.
  * @return {RegExp} Returns a regex created from the given pattern.
  * @api public
  */
 
-picomatch.compileRe = (parsed, options, returnOutput = false, returnState = false) => {
-  if (returnOutput === true) {
-    return parsed.output;
-  }
-
-  const opts = options || {};
-  const prepend = opts.contains ? '' : '^';
-  const append = opts.contains ? '' : '$';
-
-  let source = `${prepend}(?:${parsed.output})${append}`;
-  if (parsed && parsed.negated === true) {
-    source = `^(?!${source}).*$`;
-  }
-
-  const regex = picomatch.toRegex(source, options);
-  if (returnState === true) {
-    regex.state = parsed;
-  }
-
-  return regex;
-};
-
-picomatch.makeRe = (input, options, returnOutput = false, returnState = false) => {
+picomatch.makeRe = (input, options = {}, returnOutput = false, returnState = false) => {
   if (!input || typeof input !== 'string') {
     throw new TypeError('Expected a non-empty string');
   }
 
-  const opts = options || {};
   let parsed = { negated: false, fastpaths: true };
-  let prefix = '';
-  let output;
 
-  if (input.startsWith('./')) {
-    input = input.slice(2);
-    prefix = parsed.prefix = './';
+  if (options.fastpaths !== false && (input[0] === '.' || input[0] === '*')) {
+    parsed.output = parse.fastpaths(input, options);
   }
 
-  if (opts.fastpaths !== false && (input[0] === '.' || input[0] === '*')) {
-    output = parse.fastpaths(input, options);
-  }
-
-  if (output === undefined) {
+  if (!parsed.output) {
     parsed = parse(input, options);
-    parsed.prefix = prefix + (parsed.prefix || '');
-  } else {
-    parsed.output = output;
   }
 
   return picomatch.compileRe(parsed, options, returnOutput, returnState);
@@ -8463,15 +8730,30 @@ function generate(patterns, settings) {
     return staticTasks.concat(dynamicTasks);
 }
 exports.generate = generate;
+/**
+ * Returns tasks grouped by basic pattern directories.
+ *
+ * Patterns that can be found inside (`./`) and outside (`../`) the current directory are handled separately.
+ * This is necessary because directory traversal starts at the base directory and goes deeper.
+ */
 function convertPatternsToTasks(positive, negative, dynamic) {
-    const positivePatternsGroup = groupPatternsByBaseDirectory(positive);
-    // When we have a global group – there is no reason to divide the patterns into independent tasks.
-    // In this case, the global task covers the rest.
-    if ('.' in positivePatternsGroup) {
-        const task = convertPatternGroupToTask('.', positive, negative, dynamic);
-        return [task];
+    const tasks = [];
+    const patternsOutsideCurrentDirectory = utils.pattern.getPatternsOutsideCurrentDirectory(positive);
+    const patternsInsideCurrentDirectory = utils.pattern.getPatternsInsideCurrentDirectory(positive);
+    const outsideCurrentDirectoryGroup = groupPatternsByBaseDirectory(patternsOutsideCurrentDirectory);
+    const insideCurrentDirectoryGroup = groupPatternsByBaseDirectory(patternsInsideCurrentDirectory);
+    tasks.push(...convertPatternGroupsToTasks(outsideCurrentDirectoryGroup, negative, dynamic));
+    /*
+     * For the sake of reducing future accesses to the file system, we merge all tasks within the current directory
+     * into a global task, if at least one pattern refers to the root (`.`). In this case, the global task covers the rest.
+     */
+    if ('.' in insideCurrentDirectoryGroup) {
+        tasks.push(convertPatternGroupToTask('.', patternsInsideCurrentDirectory, negative, dynamic));
     }
-    return convertPatternGroupsToTasks(positivePatternsGroup, negative, dynamic);
+    else {
+        tasks.push(...convertPatternGroupsToTasks(insideCurrentDirectoryGroup, negative, dynamic));
+    }
+    return tasks;
 }
 exports.convertPatternsToTasks = convertPatternsToTasks;
 function getPositivePatterns(patterns) {
@@ -8531,13 +8813,13 @@ class SyncReader extends reader_1.default {
     constructor() {
         super(...arguments);
         this._scandir = fsScandir.scandirSync;
-        this._storage = new Set();
+        this._storage = [];
         this._queue = new Set();
     }
     read() {
         this._pushToQueue(this._root, this._settings.basePath);
         this._handleQueue();
-        return [...this._storage];
+        return this._storage;
     }
     _pushToQueue(directory, base) {
         this._queue.add({ directory, base });
@@ -8573,11 +8855,11 @@ class SyncReader extends reader_1.default {
             this._pushToStorage(entry);
         }
         if (entry.dirent.isDirectory() && common.isAppliedFilter(this._settings.deepFilter, entry)) {
-            this._pushToQueue(fullpath, entry.path);
+            this._pushToQueue(fullpath, base === undefined ? undefined : entry.path);
         }
     }
     _pushToStorage(entry) {
-        this._storage.add(entry);
+        this._storage.push(entry);
     }
 }
 exports.default = SyncReader;
@@ -8619,6 +8901,8 @@ const define = (object, key, value) =>
   Object.defineProperty(object, key, {value})
 
 const REGEX_REGEXP_RANGE = /([0-z])-([0-z])/g
+
+const RETURN_FALSE = () => false
 
 // Sanitize the range of a regular expression
 // The cases are complicated, see test cases for details
@@ -8878,22 +9162,18 @@ const REPLACERS = [
 const regexCache = Object.create(null)
 
 // @param {pattern}
-const makeRegex = (pattern, negative, ignorecase) => {
-  const r = regexCache[pattern]
-  if (r) {
-    return r
+const makeRegex = (pattern, ignoreCase) => {
+  let source = regexCache[pattern]
+
+  if (!source) {
+    source = REPLACERS.reduce(
+      (prev, current) => prev.replace(current[0], current[1].bind(pattern)),
+      pattern
+    )
+    regexCache[pattern] = source
   }
 
-  // const replacers = negative
-  //   ? NEGATIVE_REPLACERS
-  //   : POSITIVE_REPLACERS
-
-  const source = REPLACERS.reduce(
-    (prev, current) => prev.replace(current[0], current[1].bind(pattern)),
-    pattern
-  )
-
-  return regexCache[pattern] = ignorecase
+  return ignoreCase
     ? new RegExp(source, 'i')
     : new RegExp(source)
 }
@@ -8924,7 +9204,7 @@ class IgnoreRule {
   }
 }
 
-const createRule = (pattern, ignorecase) => {
+const createRule = (pattern, ignoreCase) => {
   const origin = pattern
   let negative = false
 
@@ -8942,7 +9222,7 @@ const createRule = (pattern, ignorecase) => {
   // >   begin with a hash.
   .replace(REGEX_REPLACE_LEADING_EXCAPED_HASH, '#')
 
-  const regex = makeRegex(pattern, negative, ignorecase)
+  const regex = makeRegex(pattern, ignoreCase)
 
   return new IgnoreRule(
     origin,
@@ -8988,11 +9268,15 @@ checkPath.convert = p => p
 
 class Ignore {
   constructor ({
-    ignorecase = true
+    ignorecase = true,
+    ignoreCase = ignorecase,
+    allowRelativePaths = false
   } = {}) {
-    this._rules = []
-    this._ignorecase = ignorecase
     define(this, KEY_IGNORE, true)
+
+    this._rules = []
+    this._ignoreCase = ignoreCase
+    this._allowRelativePaths = allowRelativePaths
     this._initCache()
   }
 
@@ -9010,7 +9294,7 @@ class Ignore {
     }
 
     if (checkPattern(pattern)) {
-      const rule = createRule(pattern, this._ignorecase)
+      const rule = createRule(pattern, this._ignoreCase)
       this._added = true
       this._rules.push(rule)
     }
@@ -9089,7 +9373,13 @@ class Ignore {
       // Supports nullable path
       && checkPath.convert(originalPath)
 
-    checkPath(path, originalPath, throwError)
+    checkPath(
+      path,
+      originalPath,
+      this._allowRelativePaths
+        ? RETURN_FALSE
+        : throwError
+    )
 
     return this._t(path, cache, checkUnignored, slices)
   }
@@ -9147,10 +9437,8 @@ class Ignore {
 
 const factory = options => new Ignore(options)
 
-const returnFalse = () => false
-
 const isPathValid = path =>
-  checkPath(path && checkPath.convert(path), path, returnFalse)
+  checkPath(path && checkPath.convert(path), path, RETURN_FALSE)
 
 factory.isPathValid = isPathValid
 
@@ -10791,6 +11079,7 @@ exports.default = Settings;
 "use strict";
 
 const taskManager = __webpack_require__(384);
+const patternManager = __webpack_require__(36);
 const async_1 = __webpack_require__(113);
 const stream_1 = __webpack_require__(775);
 const sync_1 = __webpack_require__(78);
@@ -10824,7 +11113,7 @@ async function FastGlob(source, options) {
     FastGlob.stream = stream;
     function generateTasks(source, options) {
         assertPatternsInput(source);
-        const patterns = [].concat(source);
+        const patterns = patternManager.transform([].concat(source));
         const settings = new settings_1.default(options);
         return taskManager.generate(patterns, settings);
     }
@@ -10842,7 +11131,7 @@ async function FastGlob(source, options) {
     FastGlob.escapePath = escapePath;
 })(FastGlob || (FastGlob = {}));
 function getWorks(source, _Provider, options) {
-    const patterns = [].concat(source);
+    const patterns = patternManager.transform([].concat(source));
     const settings = new settings_1.default(options);
     const tasks = taskManager.generate(patterns, settings);
     const provider = new _Provider(settings);
@@ -11271,7 +11560,8 @@ const settings_1 = __webpack_require__(611);
 exports.Settings = settings_1.default;
 function walk(directory, optionsOrSettingsOrCallback, callback) {
     if (typeof optionsOrSettingsOrCallback === 'function') {
-        return new async_1.default(directory, getSettings()).read(optionsOrSettingsOrCallback);
+        new async_1.default(directory, getSettings()).read(optionsOrSettingsOrCallback);
+        return;
     }
     new async_1.default(directory, getSettings(optionsOrSettingsOrCallback)).read(callback);
 }
@@ -11472,7 +11762,8 @@ const depth = token => {
 /**
  * Quickly scans a glob pattern and returns an object with a handful of
  * useful properties, like `isGlob`, `path` (the leading non-glob, if it exists),
- * `glob` (the actual pattern), and `negated` (true if the path starts with `!`).
+ * `glob` (the actual pattern), `negated` (true if the path starts with `!` but not
+ * with `!(`) and `negatedExtglob` (true if the path starts with `!(`).
  *
  * ```js
  * const pm = require('picomatch');
@@ -11506,6 +11797,7 @@ const scan = (input, options) => {
   let braceEscaped = false;
   let backslashes = false;
   let negated = false;
+  let negatedExtglob = false;
   let finished = false;
   let braces = 0;
   let prev;
@@ -11617,6 +11909,9 @@ const scan = (input, options) => {
         isGlob = token.isGlob = true;
         isExtglob = token.isExtglob = true;
         finished = true;
+        if (code === CHAR_EXCLAMATION_MARK && index === start) {
+          negatedExtglob = true;
+        }
 
         if (scanToEnd === true) {
           while (eos() !== true && (code = advance())) {
@@ -11770,7 +12065,8 @@ const scan = (input, options) => {
     isGlob,
     isExtglob,
     isGlobstar,
-    negated
+    negated,
+    negatedExtglob
   };
 
   if (opts.tokens === true) {
@@ -12152,7 +12448,7 @@ AsyncLock.prototype.acquire = function (key, fn, cb, opts) {
 		exec(false);
 	}
 	else if (self.queues[key].length >= self.maxPending) {
-		done(false, new Error('Too much pending tasks'));
+		done(false, new Error('Too many pending tasks in queue ' + key));
 	}
 	else {
 		var taskFn = function () {
@@ -12168,7 +12464,7 @@ AsyncLock.prototype.acquire = function (key, fn, cb, opts) {
 		if (timeout) {
 			timer = setTimeout(function () {
 				timer = null;
-				done(false, new Error('async-lock timed out'));
+				done(false, new Error('async-lock timed out in queue ' + key));
 			}, timeout);
 		}
 	}
@@ -12177,7 +12473,7 @@ AsyncLock.prototype.acquire = function (key, fn, cb, opts) {
 		if (maxOccupationTime) {
 			occupationTimer = setTimeout(function () {
 				if (!!self.queues[key]) {
-					done(false, new Error('Maximum occupation time is exceeded'));
+					done(false, new Error('Maximum occupation time is exceeded in queue ' + key));
 				}
 			}, maxOccupationTime);
 		}
@@ -12373,7 +12669,7 @@ SSH_PRIVATE_KEY correctly
 const REPO_SELF = 'self';
 const RESOURCES = path.join(path.dirname(__dirname), 'resources');
 const KNOWN_HOSTS_GITHUB = path.join(RESOURCES, 'known_hosts_github.com');
-const SSH_FOLDER = path.join(os_1.homedir(), '.ssh');
+const SSH_FOLDER = path.join((0, os_1.homedir)(), '.ssh');
 const KNOWN_HOSTS_TARGET = path.join(SSH_FOLDER, 'known_hosts');
 const SSH_AGENT_PID_EXTRACT = /SSH_AGENT_PID=([0-9]+);/;
 const genConfig = (env = process.env) => {
@@ -12409,7 +12705,7 @@ const genConfig = (env = process.env) => {
         };
         return config;
     }
-    const parsedUrl = git_url_parse_1.default(repo);
+    const parsedUrl = (0, git_url_parse_1.default)(repo);
     if (parsedUrl.protocol === 'ssh') {
         if (!env.SSH_PRIVATE_KEY)
             throw new Error('SSH_PRIVATE_KEY must be specified when REPO uses ssh');
@@ -12462,7 +12758,7 @@ const main = async ({ env = process.env, log, }) => {
     var _a, _b;
     const config = genConfig(env);
     // Calculate paths that use temp diractory
-    const TMP_PATH = await fs_1.promises.mkdtemp(path.join(os_1.tmpdir(), 'git-publish-subdir-action-'));
+    const TMP_PATH = await fs_1.promises.mkdtemp(path.join((0, os_1.tmpdir)(), 'git-publish-subdir-action-'));
     const REPO_TEMP = path.join(TMP_PATH, 'repo');
     const SSH_AUTH_SOCK = path.join(TMP_PATH, 'ssh_agent.sock');
     if (!env.GITHUB_EVENT_PATH)
@@ -12475,8 +12771,8 @@ const main = async ({ env = process.env, log, }) => {
             : 'nobody@nowhere');
     const tag = env.TAG;
     // Set Git Config
-    await exports.exec(`git config --global user.name "${name}"`, { log });
-    await exports.exec(`git config --global user.email "${email}"`, { log });
+    await (0, exports.exec)(`git config --global user.name "${name}"`, { log });
+    await (0, exports.exec)(`git config --global user.email "${email}"`, { log });
     /**
      * Get information about the current git repository
      */
@@ -12540,12 +12836,12 @@ const main = async ({ env = process.env, log, }) => {
             log.warn(KNOWN_HOSTS_WARNING);
         }
         else {
-            await io_1.mkdirP(SSH_FOLDER);
+            await (0, io_1.mkdirP)(SSH_FOLDER);
             await fs_1.promises.copyFile(known_hosts, KNOWN_HOSTS_TARGET);
         }
         // Setup ssh-agent with private key
         log.log(`Setting up ssh-agent on ${SSH_AUTH_SOCK}`);
-        const sshAgentMatch = SSH_AGENT_PID_EXTRACT.exec((await exports.exec(`ssh-agent -a ${SSH_AUTH_SOCK}`, { log, env: childEnv }))
+        const sshAgentMatch = SSH_AGENT_PID_EXTRACT.exec((await (0, exports.exec)(`ssh-agent -a ${SSH_AUTH_SOCK}`, { log, env: childEnv }))
             .stdout);
         /* istanbul ignore if */
         if (!sshAgentMatch)
@@ -12560,7 +12856,7 @@ const main = async ({ env = process.env, log, }) => {
         log.log(`Private key added`);
     }
     // Clone the target repo
-    await exports.exec(`git clone "${config.repo}" "${REPO_TEMP}"`, {
+    await (0, exports.exec)(`git clone "${config.repo}" "${REPO_TEMP}"`, {
         log,
         env: childEnv,
     }).catch((err) => {
@@ -12579,7 +12875,7 @@ const main = async ({ env = process.env, log, }) => {
     });
     if (!config.squashHistory) {
         // Fetch branch if it exists
-        await exports.exec(`git fetch -u origin ${config.branch}:${config.branch}`, {
+        await (0, exports.exec)(`git fetch -u origin ${config.branch}:${config.branch}`, {
             log,
             env: childEnv,
             cwd: REPO_TEMP,
@@ -12593,7 +12889,7 @@ const main = async ({ env = process.env, log, }) => {
         });
         // Check if branch already exists
         log.log(`##[info] Checking if branch ${config.branch} exists already`);
-        const branchCheck = await exports.exec(`git branch --list "${config.branch}"`, {
+        const branchCheck = await (0, exports.exec)(`git branch --list "${config.branch}"`, {
             log,
             env: childEnv,
             cwd: REPO_TEMP,
@@ -12601,14 +12897,14 @@ const main = async ({ env = process.env, log, }) => {
         if (branchCheck.stdout.trim() === '') {
             // Branch does not exist yet, let's check it out as an orphan
             log.log(`##[info] ${config.branch} does not exist, creating as orphan`);
-            await exports.exec(`git checkout --orphan "${config.branch}"`, {
+            await (0, exports.exec)(`git checkout --orphan "${config.branch}"`, {
                 log,
                 env: childEnv,
                 cwd: REPO_TEMP,
             });
         }
         else {
-            await exports.exec(`git checkout "${config.branch}"`, {
+            await (0, exports.exec)(`git checkout "${config.branch}"`, {
                 log,
                 env: childEnv,
                 cwd: REPO_TEMP,
@@ -12618,19 +12914,19 @@ const main = async ({ env = process.env, log, }) => {
     else {
         // Checkout a random branch so we can delete the target branch if it exists
         log.log('Checking out temp branch');
-        await exports.exec(`git checkout -b "${Math.random().toString(36).substring(2)}"`, {
+        await (0, exports.exec)(`git checkout -b "${Math.random().toString(36).substring(2)}"`, {
             log,
             env: childEnv,
             cwd: REPO_TEMP,
         });
         // Delete the target branch if it exists
-        await exports.exec(`git branch -D "${config.branch}"`, {
+        await (0, exports.exec)(`git branch -D "${config.branch}"`, {
             log,
             env: childEnv,
             cwd: REPO_TEMP,
         }).catch((err) => { });
         // Checkout target branch as an orphan
-        await exports.exec(`git checkout --orphan "${config.branch}"`, {
+        await (0, exports.exec)(`git checkout --orphan "${config.branch}"`, {
             log,
             env: childEnv,
             cwd: REPO_TEMP,
@@ -12659,7 +12955,7 @@ const main = async ({ env = process.env, log, }) => {
             return ['**/*', '!.git'];
         }
     })();
-    const filesToDelete = fast_glob_1.stream(globs, {
+    const filesToDelete = (0, fast_glob_1.stream)(globs, {
         absolute: true,
         dot: true,
         followSymbolicLinks: false,
@@ -12672,8 +12968,8 @@ const main = async ({ env = process.env, log, }) => {
     const folder = path.resolve(process.cwd(), config.folder);
     log.log(`##[info] Copying all files from ${folder}`);
     // TODO: replace this copy with a node implementation
-    await exports.exec(`cp -rT "${folder}"/ ./`, { log, env: childEnv, cwd: REPO_TEMP });
-    await exports.exec(`git add -A .`, { log, env: childEnv, cwd: REPO_TEMP });
+    await (0, exports.exec)(`cp -rT "${folder}"/ ./`, { log, env: childEnv, cwd: REPO_TEMP });
+    await (0, exports.exec)(`git add -A .`, { log, env: childEnv, cwd: REPO_TEMP });
     const message = config.message
         .replace(/\{target\-branch\}/g, config.branch)
         .replace(/\{sha\}/g, gitInfo.sha.substr(0, 7))
@@ -12723,12 +13019,12 @@ const main = async ({ env = process.env, log, }) => {
     log.log(`##[info] Pushing`);
     const forceArg = config.squashHistory ? '-f' : '';
     const tagsArg = tag ? '--tags' : '';
-    const push = await exports.exec(`git push ${forceArg} origin "${config.branch}" ${tagsArg}`, { log, env: childEnv, cwd: REPO_TEMP });
+    const push = await (0, exports.exec)(`git push ${forceArg} origin "${config.branch}" ${tagsArg}`, { log, env: childEnv, cwd: REPO_TEMP });
     log.log(push.stdout);
     log.log(`##[info] Deployment Successful`);
     if (config.mode === 'ssh') {
         log.log(`##[info] Killing ssh-agent`);
-        await exports.exec(`ssh-agent -k`, { log, env: childEnv });
+        await (0, exports.exec)(`ssh-agent -k`, { log, env: childEnv });
     }
 };
 exports.main = main;
@@ -12811,7 +13107,7 @@ class Settings {
     constructor(_options = {}) {
         this._options = _options;
         this.basePath = this._getValue(this._options.basePath, undefined);
-        this.concurrency = this._getValue(this._options.concurrency, Infinity);
+        this.concurrency = this._getValue(this._options.concurrency, Number.POSITIVE_INFINITY);
         this.deepFilter = this._getValue(this._options.deepFilter, null);
         this.entryFilter = this._getValue(this._options.entryFilter, null);
         this.errorFilter = this._getValue(this._options.errorFilter, null);
@@ -12997,7 +13293,8 @@ const settings_1 = __webpack_require__(403);
 exports.Settings = settings_1.default;
 function scandir(path, optionsOrSettingsOrCallback, callback) {
     if (typeof optionsOrSettingsOrCallback === 'function') {
-        return async.read(path, getSettings(), optionsOrSettingsOrCallback);
+        async.read(path, getSettings(), optionsOrSettingsOrCallback);
+        return;
     }
     async.read(path, getSettings(optionsOrSettingsOrCallback), callback);
 }
@@ -13169,6 +13466,25 @@ module.exports = require("util");
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -13178,16 +13494,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
-    result["default"] = mod;
-    return result;
-};
 var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
-const assert_1 = __webpack_require__(59);
+exports.getCmdPath = exports.tryGetExecutablePath = exports.isRooted = exports.isDirectory = exports.exists = exports.IS_WINDOWS = exports.unlink = exports.symlink = exports.stat = exports.rmdir = exports.rename = exports.readlink = exports.readdir = exports.mkdir = exports.lstat = exports.copyFile = exports.chmod = void 0;
 const fs = __importStar(__webpack_require__(747));
 const path = __importStar(__webpack_require__(622));
 _a = fs.promises, exports.chmod = _a.chmod, exports.copyFile = _a.copyFile, exports.lstat = _a.lstat, exports.mkdir = _a.mkdir, exports.readdir = _a.readdir, exports.readlink = _a.readlink, exports.rename = _a.rename, exports.rmdir = _a.rmdir, exports.stat = _a.stat, exports.symlink = _a.symlink, exports.unlink = _a.unlink;
@@ -13230,49 +13539,6 @@ function isRooted(p) {
     return p.startsWith('/');
 }
 exports.isRooted = isRooted;
-/**
- * Recursively create a directory at `fsPath`.
- *
- * This implementation is optimistic, meaning it attempts to create the full
- * path first, and backs up the path stack from there.
- *
- * @param fsPath The path to create
- * @param maxDepth The maximum recursion depth
- * @param depth The current recursion depth
- */
-function mkdirP(fsPath, maxDepth = 1000, depth = 1) {
-    return __awaiter(this, void 0, void 0, function* () {
-        assert_1.ok(fsPath, 'a path argument must be provided');
-        fsPath = path.resolve(fsPath);
-        if (depth >= maxDepth)
-            return exports.mkdir(fsPath);
-        try {
-            yield exports.mkdir(fsPath);
-            return;
-        }
-        catch (err) {
-            switch (err.code) {
-                case 'ENOENT': {
-                    yield mkdirP(path.dirname(fsPath), maxDepth, depth + 1);
-                    yield exports.mkdir(fsPath);
-                    return;
-                }
-                default: {
-                    let stats;
-                    try {
-                        stats = yield exports.stat(fsPath);
-                    }
-                    catch (err2) {
-                        throw err;
-                    }
-                    if (!stats.isDirectory())
-                        throw err;
-                }
-            }
-        }
-    });
-}
-exports.mkdirP = mkdirP;
 /**
  * Best effort attempt to determine whether a file exists and is executable.
  * @param filePath    file path to check
@@ -13369,6 +13635,12 @@ function isUnixExecutable(stats) {
         ((stats.mode & 8) > 0 && stats.gid === process.getgid()) ||
         ((stats.mode & 64) > 0 && stats.uid === process.getuid()));
 }
+// Get the path of cmd.exe in windows
+function getCmdPath() {
+    var _a;
+    return (_a = process.env['COMSPEC']) !== null && _a !== void 0 ? _a : `cmd.exe`;
+}
+exports.getCmdPath = getCmdPath;
 //# sourceMappingURL=io-util.js.map
 
 /***/ }),
@@ -13730,6 +14002,8 @@ module.exports = function inflate_table(type, lens, lens_index, codes, table, ta
 "use strict";
 
 
+/* eslint-disable no-var */
+
 var reusify = __webpack_require__(440)
 
 function fastqueue (context, worker, concurrency) {
@@ -13951,11 +14225,12 @@ function queueAsPromised (context, worker, concurrency) {
 
   queue.push = push
   queue.unshift = unshift
+  queue.drained = drained
 
   return queue
 
   function push (value) {
-    return new Promise(function (resolve, reject) {
+    var p = new Promise(function (resolve, reject) {
       pushCb(value, function (err, result) {
         if (err) {
           reject(err)
@@ -13964,10 +14239,17 @@ function queueAsPromised (context, worker, concurrency) {
         resolve(result)
       })
     })
+
+    // Let's fork the promise chain to
+    // make the error bubble up to the user but
+    // not lead to a unhandledRejection
+    p.catch(noop)
+
+    return p
   }
 
   function unshift (value) {
-    return new Promise(function (resolve, reject) {
+    var p = new Promise(function (resolve, reject) {
       unshiftCb(value, function (err, result) {
         if (err) {
           reject(err)
@@ -13976,6 +14258,26 @@ function queueAsPromised (context, worker, concurrency) {
         resolve(result)
       })
     })
+
+    // Let's fork the promise chain to
+    // make the error bubble up to the user but
+    // not lead to a unhandledRejection
+    p.catch(noop)
+
+    return p
+  }
+
+  function drained () {
+    var previousDrain = queue.drain
+
+    var p = new Promise(function (resolve) {
+      queue.drain = function () {
+        previousDrain()
+        resolve()
+      }
+    })
+
+    return p
   }
 }
 
@@ -14125,9 +14427,13 @@ class EntryFilter {
         const fullpath = utils.path.makeAbsolute(this._settings.cwd, entryPath);
         return utils.pattern.matchAny(fullpath, patternsRe);
     }
+    /**
+     * First, just trying to apply patterns to the path.
+     * Second, trying to apply patterns to the path with final slash.
+     */
     _isMatchToPatterns(entryPath, patternsRe) {
         const filepath = utils.path.removeLeadingDotSegment(entryPath);
-        return utils.pattern.matchAny(filepath, patternsRe);
+        return utils.pattern.matchAny(filepath, patternsRe) || utils.pattern.matchAny(filepath + '/', patternsRe);
     }
 }
 exports.default = EntryFilter;
@@ -14170,7 +14476,8 @@ function isSsh(input) {
     }
 
     // TODO This probably could be improved :)
-    return input.indexOf("@") < input.indexOf(":");
+    var urlPortPattern = new RegExp('\.([a-zA-Z\\d]+):(\\d+)\/');
+    return !input.match(urlPortPattern) && input.indexOf("@") < input.indexOf(":");
 }
 
 module.exports = isSsh;
@@ -14183,18 +14490,17 @@ module.exports = isSsh;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.matchAny = exports.convertPatternsToRe = exports.makeRe = exports.getPatternParts = exports.expandBraceExpansion = exports.expandPatternsWithBraceExpansion = exports.isAffectDepthOfReadingPattern = exports.endsWithSlashGlobStar = exports.hasGlobStar = exports.getBaseDirectory = exports.getPositivePatterns = exports.getNegativePatterns = exports.isPositivePattern = exports.isNegativePattern = exports.convertToNegativePattern = exports.convertToPositivePattern = exports.isDynamicPattern = exports.isStaticPattern = void 0;
+exports.matchAny = exports.convertPatternsToRe = exports.makeRe = exports.getPatternParts = exports.expandBraceExpansion = exports.expandPatternsWithBraceExpansion = exports.isAffectDepthOfReadingPattern = exports.endsWithSlashGlobStar = exports.hasGlobStar = exports.getBaseDirectory = exports.isPatternRelatedToParentDirectory = exports.getPatternsOutsideCurrentDirectory = exports.getPatternsInsideCurrentDirectory = exports.getPositivePatterns = exports.getNegativePatterns = exports.isPositivePattern = exports.isNegativePattern = exports.convertToNegativePattern = exports.convertToPositivePattern = exports.isDynamicPattern = exports.isStaticPattern = void 0;
 const path = __webpack_require__(622);
 const globParent = __webpack_require__(763);
 const micromatch = __webpack_require__(74);
-const picomatch = __webpack_require__(827);
 const GLOBSTAR = '**';
 const ESCAPE_SYMBOL = '\\';
 const COMMON_GLOB_SYMBOLS_RE = /[*?]|^!/;
-const REGEX_CHARACTER_CLASS_SYMBOLS_RE = /\[.*]/;
-const REGEX_GROUP_SYMBOLS_RE = /(?:^|[^!*+?@])\(.*\|.*\)/;
-const GLOB_EXTENSION_SYMBOLS_RE = /[!*+?@]\(.*\)/;
-const BRACE_EXPANSIONS_SYMBOLS_RE = /{.*(?:,|\.\.).*}/;
+const REGEX_CHARACTER_CLASS_SYMBOLS_RE = /\[[^[]*]/;
+const REGEX_GROUP_SYMBOLS_RE = /(?:^|[^!*+?@])\([^(]*\|[^|]*\)/;
+const GLOB_EXTENSION_SYMBOLS_RE = /[!*+?@]\([^(]*\)/;
+const BRACE_EXPANSION_SEPARATORS_RE = /,|\.\./;
 function isStaticPattern(pattern, options = {}) {
     return !isDynamicPattern(pattern, options);
 }
@@ -14221,12 +14527,24 @@ function isDynamicPattern(pattern, options = {}) {
     if (options.extglob !== false && GLOB_EXTENSION_SYMBOLS_RE.test(pattern)) {
         return true;
     }
-    if (options.braceExpansion !== false && BRACE_EXPANSIONS_SYMBOLS_RE.test(pattern)) {
+    if (options.braceExpansion !== false && hasBraceExpansion(pattern)) {
         return true;
     }
     return false;
 }
 exports.isDynamicPattern = isDynamicPattern;
+function hasBraceExpansion(pattern) {
+    const openingBraceIndex = pattern.indexOf('{');
+    if (openingBraceIndex === -1) {
+        return false;
+    }
+    const closingBraceIndex = pattern.indexOf('}', openingBraceIndex + 1);
+    if (closingBraceIndex === -1) {
+        return false;
+    }
+    const braceContent = pattern.slice(openingBraceIndex, closingBraceIndex);
+    return BRACE_EXPANSION_SEPARATORS_RE.test(braceContent);
+}
 function convertToPositivePattern(pattern) {
     return isNegativePattern(pattern) ? pattern.slice(1) : pattern;
 }
@@ -14251,6 +14569,32 @@ function getPositivePatterns(patterns) {
     return patterns.filter(isPositivePattern);
 }
 exports.getPositivePatterns = getPositivePatterns;
+/**
+ * Returns patterns that can be applied inside the current directory.
+ *
+ * @example
+ * // ['./*', '*', 'a/*']
+ * getPatternsInsideCurrentDirectory(['./*', '*', 'a/*', '../*', './../*'])
+ */
+function getPatternsInsideCurrentDirectory(patterns) {
+    return patterns.filter((pattern) => !isPatternRelatedToParentDirectory(pattern));
+}
+exports.getPatternsInsideCurrentDirectory = getPatternsInsideCurrentDirectory;
+/**
+ * Returns patterns to be expanded relative to (outside) the current directory.
+ *
+ * @example
+ * // ['../*', './../*']
+ * getPatternsInsideCurrentDirectory(['./*', '*', 'a/*', '../*', './../*'])
+ */
+function getPatternsOutsideCurrentDirectory(patterns) {
+    return patterns.filter(isPatternRelatedToParentDirectory);
+}
+exports.getPatternsOutsideCurrentDirectory = getPatternsOutsideCurrentDirectory;
+function isPatternRelatedToParentDirectory(pattern) {
+    return pattern.startsWith('..') || pattern.startsWith('./..');
+}
+exports.isPatternRelatedToParentDirectory = isPatternRelatedToParentDirectory;
 function getBaseDirectory(pattern) {
     return globParent(pattern, { flipBackslashes: false });
 }
@@ -14282,7 +14626,7 @@ function expandBraceExpansion(pattern) {
 }
 exports.expandBraceExpansion = expandBraceExpansion;
 function getPatternParts(pattern, options) {
-    let { parts } = picomatch.scan(pattern, Object.assign(Object.assign({}, options), { parts: true }));
+    let { parts } = micromatch.scan(pattern, Object.assign(Object.assign({}, options), { parts: true }));
     /**
      * The scan method returns an empty array in some cases.
      * See micromatch/picomatch#58 for more details.
@@ -14327,17 +14671,21 @@ exports.read = void 0;
 function read(path, settings, callback) {
     settings.fs.lstat(path, (lstatError, lstat) => {
         if (lstatError !== null) {
-            return callFailureCallback(callback, lstatError);
+            callFailureCallback(callback, lstatError);
+            return;
         }
         if (!lstat.isSymbolicLink() || !settings.followSymbolicLink) {
-            return callSuccessCallback(callback, lstat);
+            callSuccessCallback(callback, lstat);
+            return;
         }
         settings.fs.stat(path, (statError, stat) => {
             if (statError !== null) {
                 if (settings.throwErrorOnBrokenSymbolicLink) {
-                    return callFailureCallback(callback, statError);
+                    callFailureCallback(callback, statError);
+                    return;
                 }
-                return callSuccessCallback(callback, lstat);
+                callSuccessCallback(callback, lstat);
+                return;
             }
             if (settings.markSymbolicLink) {
                 stat.isSymbolicLink = () => true;
@@ -14995,17 +15343,17 @@ class AsyncProvider {
         this._root = _root;
         this._settings = _settings;
         this._reader = new async_1.default(this._root, this._settings);
-        this._storage = new Set();
+        this._storage = [];
     }
     read(callback) {
         this._reader.onError((error) => {
             callFailureCallback(callback, error);
         });
         this._reader.onEntry((entry) => {
-            this._storage.add(entry);
+            this._storage.push(entry);
         });
         this._reader.onEnd(() => {
-            callSuccessCallback(callback, [...this._storage]);
+            callSuccessCallback(callback, this._storage);
         });
         this._reader.read();
     }
@@ -15579,7 +15927,7 @@ exports.default = StreamProvider;
 /***/ 800:
 /***/ (function(__unusedmodule, exports) {
 
-/* crc32.js (C) 2014-present SheetJS -- http://sheetjs.com */
+/*! crc32.js (C) 2014-present SheetJS -- http://sheetjs.com */
 /* vim: set ts=2: */
 /*exported CRC32 */
 var CRC32;
@@ -15596,8 +15944,7 @@ var CRC32;
 	/*eslint-enable */
 	/*jshint ignore:end */
 }(function(CRC32) {
-CRC32.version = '1.2.0';
-/* see perf/crc32table.js */
+CRC32.version = '1.2.1';
 /*global Int32Array */
 function signed_crc_table() {
 	var c = 0, table = new Array(256);
@@ -15618,70 +15965,68 @@ function signed_crc_table() {
 	return typeof Int32Array !== 'undefined' ? new Int32Array(table) : table;
 }
 
-var T = signed_crc_table();
+var T0 = signed_crc_table();
+function slice_by_16_tables(T) {
+	var c = 0, v = 0, n = 0, table = typeof Int32Array !== 'undefined' ? new Int32Array(4096) : new Array(4096) ;
+
+	for(n = 0; n != 256; ++n) table[n] = T[n];
+	for(n = 0; n != 256; ++n) {
+		v = T[n];
+		for(c = 256 + n; c < 4096; c += 256) v = table[c] = (v >>> 8) ^ T[v & 0xFF];
+	}
+	var out = [];
+	for(n = 1; n != 16; ++n) out[n - 1] = typeof Int32Array !== 'undefined' ? table.subarray(n * 256, n * 256 + 256) : table.slice(n * 256, n * 256 + 256);
+	return out;
+}
+var TT = slice_by_16_tables(T0);
+var T1 = TT[0],  T2 = TT[1],  T3 = TT[2],  T4 = TT[3],  T5 = TT[4];
+var T6 = TT[5],  T7 = TT[6],  T8 = TT[7],  T9 = TT[8],  Ta = TT[9];
+var Tb = TT[10], Tc = TT[11], Td = TT[12], Te = TT[13], Tf = TT[14];
 function crc32_bstr(bstr, seed) {
-	var C = seed ^ -1, L = bstr.length - 1;
-	for(var i = 0; i < L;) {
-		C = (C>>>8) ^ T[(C^bstr.charCodeAt(i++))&0xFF];
-		C = (C>>>8) ^ T[(C^bstr.charCodeAt(i++))&0xFF];
-	}
-	if(i === L) C = (C>>>8) ^ T[(C ^ bstr.charCodeAt(i))&0xFF];
-	return C ^ -1;
+	var C = seed ^ -1;
+	for(var i = 0, L = bstr.length; i < L;) C = (C>>>8) ^ T0[(C^bstr.charCodeAt(i++))&0xFF];
+	return ~C;
 }
 
-function crc32_buf(buf, seed) {
-	if(buf.length > 10000) return crc32_buf_8(buf, seed);
-	var C = seed ^ -1, L = buf.length - 3;
-	for(var i = 0; i < L;) {
-		C = (C>>>8) ^ T[(C^buf[i++])&0xFF];
-		C = (C>>>8) ^ T[(C^buf[i++])&0xFF];
-		C = (C>>>8) ^ T[(C^buf[i++])&0xFF];
-		C = (C>>>8) ^ T[(C^buf[i++])&0xFF];
-	}
-	while(i < L+3) C = (C>>>8) ^ T[(C^buf[i++])&0xFF];
-	return C ^ -1;
-}
-
-function crc32_buf_8(buf, seed) {
-	var C = seed ^ -1, L = buf.length - 7;
-	for(var i = 0; i < L;) {
-		C = (C>>>8) ^ T[(C^buf[i++])&0xFF];
-		C = (C>>>8) ^ T[(C^buf[i++])&0xFF];
-		C = (C>>>8) ^ T[(C^buf[i++])&0xFF];
-		C = (C>>>8) ^ T[(C^buf[i++])&0xFF];
-		C = (C>>>8) ^ T[(C^buf[i++])&0xFF];
-		C = (C>>>8) ^ T[(C^buf[i++])&0xFF];
-		C = (C>>>8) ^ T[(C^buf[i++])&0xFF];
-		C = (C>>>8) ^ T[(C^buf[i++])&0xFF];
-	}
-	while(i < L+7) C = (C>>>8) ^ T[(C^buf[i++])&0xFF];
-	return C ^ -1;
+function crc32_buf(B, seed) {
+	var C = seed ^ -1, L = B.length - 15, i = 0;
+	for(; i < L;) C =
+		Tf[B[i++] ^ (C & 255)] ^
+		Te[B[i++] ^ ((C >> 8) & 255)] ^
+		Td[B[i++] ^ ((C >> 16) & 255)] ^
+		Tc[B[i++] ^ (C >>> 24)] ^
+		Tb[B[i++]] ^ Ta[B[i++]] ^ T9[B[i++]] ^ T8[B[i++]] ^
+		T7[B[i++]] ^ T6[B[i++]] ^ T5[B[i++]] ^ T4[B[i++]] ^
+		T3[B[i++]] ^ T2[B[i++]] ^ T1[B[i++]] ^ T0[B[i++]];
+	L += 15;
+	while(i < L) C = (C>>>8) ^ T0[(C^B[i++])&0xFF];
+	return ~C;
 }
 
 function crc32_str(str, seed) {
 	var C = seed ^ -1;
-	for(var i = 0, L=str.length, c, d; i < L;) {
+	for(var i = 0, L = str.length, c = 0, d = 0; i < L;) {
 		c = str.charCodeAt(i++);
 		if(c < 0x80) {
-			C = (C>>>8) ^ T[(C ^ c)&0xFF];
+			C = (C>>>8) ^ T0[(C^c)&0xFF];
 		} else if(c < 0x800) {
-			C = (C>>>8) ^ T[(C ^ (192|((c>>6)&31)))&0xFF];
-			C = (C>>>8) ^ T[(C ^ (128|(c&63)))&0xFF];
+			C = (C>>>8) ^ T0[(C ^ (192|((c>>6)&31)))&0xFF];
+			C = (C>>>8) ^ T0[(C ^ (128|(c&63)))&0xFF];
 		} else if(c >= 0xD800 && c < 0xE000) {
 			c = (c&1023)+64; d = str.charCodeAt(i++)&1023;
-			C = (C>>>8) ^ T[(C ^ (240|((c>>8)&7)))&0xFF];
-			C = (C>>>8) ^ T[(C ^ (128|((c>>2)&63)))&0xFF];
-			C = (C>>>8) ^ T[(C ^ (128|((d>>6)&15)|((c&3)<<4)))&0xFF];
-			C = (C>>>8) ^ T[(C ^ (128|(d&63)))&0xFF];
+			C = (C>>>8) ^ T0[(C ^ (240|((c>>8)&7)))&0xFF];
+			C = (C>>>8) ^ T0[(C ^ (128|((c>>2)&63)))&0xFF];
+			C = (C>>>8) ^ T0[(C ^ (128|((d>>6)&15)|((c&3)<<4)))&0xFF];
+			C = (C>>>8) ^ T0[(C ^ (128|(d&63)))&0xFF];
 		} else {
-			C = (C>>>8) ^ T[(C ^ (224|((c>>12)&15)))&0xFF];
-			C = (C>>>8) ^ T[(C ^ (128|((c>>6)&63)))&0xFF];
-			C = (C>>>8) ^ T[(C ^ (128|(c&63)))&0xFF];
+			C = (C>>>8) ^ T0[(C ^ (224|((c>>12)&15)))&0xFF];
+			C = (C>>>8) ^ T0[(C ^ (128|((c>>6)&63)))&0xFF];
+			C = (C>>>8) ^ T0[(C ^ (128|(c&63)))&0xFF];
 		}
 	}
-	return C ^ -1;
+	return ~C;
 }
-CRC32.table = T;
+CRC32.table = T0;
 // $FlowIgnore
 CRC32.bstr = crc32_bstr;
 // $FlowIgnore
@@ -15867,7 +16212,7 @@ const parse = (input, options) => {
     START_ANCHOR
   } = PLATFORM_CHARS;
 
-  const globstar = (opts) => {
+  const globstar = opts => {
     return `(${capture}(?:(?!${START_ANCHOR}${opts.dot ? DOTS_SLASH : DOT_LITERAL}).)*?)`;
   };
 
@@ -15917,12 +16262,13 @@ const parse = (input, options) => {
 
   const eos = () => state.index === len - 1;
   const peek = state.peek = (n = 1) => input[state.index + n];
-  const advance = state.advance = () => input[++state.index];
+  const advance = state.advance = () => input[++state.index] || '';
   const remaining = () => input.slice(state.index + 1);
   const consume = (value = '', num = 0) => {
     state.consumed += value;
     state.index += num;
   };
+
   const append = token => {
     state.output += token.output != null ? token.output : token.value;
     consume(token.value);
@@ -15978,7 +16324,7 @@ const parse = (input, options) => {
       }
     }
 
-    if (extglobs.length && tok.type !== 'paren' && !EXTGLOB_CHARS[tok.value]) {
+    if (extglobs.length && tok.type !== 'paren') {
       extglobs[extglobs.length - 1].inner += tok.value;
     }
 
@@ -16010,6 +16356,7 @@ const parse = (input, options) => {
 
   const extglobClose = token => {
     let output = token.close + (opts.capture ? ')' : '');
+    let rest;
 
     if (token.type === 'negate') {
       let extglobStar = star;
@@ -16020,6 +16367,17 @@ const parse = (input, options) => {
 
       if (extglobStar !== star || eos() || /^\)+$/.test(remaining())) {
         output = token.close = `)$))${extglobStar}`;
+      }
+
+      if (token.inner.includes('*') && (rest = remaining()) && /^\.[^\\/.]+$/.test(rest)) {
+        // Any non-magical string (`.ts`) or even nested expression (`.{ts,tsx}`) can follow after the closing parenthesis.
+        // In this case, we need to parse the string and use it in the output of the original pattern.
+        // Suitable patterns: `/!(*.d).ts`, `/!(*.d).{ts,tsx}`, `**/!(*-dbg).@(js)`.
+        //
+        // Disabling the `fastpaths` option due to a problem with parsing strings as `.ts` in the pattern like `**/!(*.d).ts`.
+        const expression = parse(rest, { ...options, fastpaths: false }).output;
+
+        output = token.close = `)${expression})${extglobStar})`;
       }
 
       if (token.prev.type === 'bos') {
@@ -16131,9 +16489,9 @@ const parse = (input, options) => {
       }
 
       if (opts.unescape === true) {
-        value = advance() || '';
+        value = advance();
       } else {
-        value += advance() || '';
+        value += advance();
       }
 
       if (state.brackets === 0) {
@@ -16797,7 +17155,7 @@ parse.fastpaths = (input, options) => {
     star = `(${star})`;
   }
 
-  const globstar = (opts) => {
+  const globstar = opts => {
     if (opts.noglobstar === true) return star;
     return `(${capture}(?:(?!${START_ANCHOR}${opts.dot ? DOTS_SLASH : DOT_LITERAL}).)*?)`;
   };
@@ -16969,7 +17327,7 @@ function parseUrl(url) {
     if (normalize) {
         if ((typeof normalize === "undefined" ? "undefined" : _typeof(normalize)) !== "object") {
             normalize = {
-                stripFragment: false
+                stripHash: false
             };
         }
         url = normalizeUrl(url, normalize);
@@ -17443,13 +17801,6 @@ class SyncProvider {
 }
 exports.default = SyncProvider;
 
-
-/***/ }),
-
-/***/ 835:
-/***/ (function(module) {
-
-module.exports = require("url");
 
 /***/ }),
 
@@ -19379,16 +19730,16 @@ class GitConfig {
           this.parsedConfig[configIndex] = modifiedConfig;
         }
       } else {
-        const sectionPath = path
-          .split('.')
-          .slice(0, -1)
-          .join('.')
-          .toLowerCase();
+        const pathSegments = path.split('.');
+        const section = pathSegments.shift().toLowerCase();
+        const name = pathSegments.pop();
+        const subsection = pathSegments.length
+          ? pathSegments.join('.').toLowerCase()
+          : undefined;
+        const sectionPath = subsection ? section + '.' + subsection : section;
         const sectionIndex = this.parsedConfig.findIndex(
           config => config.path === sectionPath
         );
-        const [section, subsection] = sectionPath.split('.');
-        const name = path.split('.').pop();
         const newConfig = {
           section,
           subsection,
@@ -19514,8 +19865,8 @@ class GitRefManager {
         if (serverRef.startsWith('refs/tags') && !serverRef.endsWith('^{}')) {
           // Git's behavior is to only fetch tags that do not conflict with tags already present.
           if (!(await GitRefManager.exists({ fs, gitdir, ref: serverRef }))) {
-            // If there is a dereferenced an annotated tag value available, prefer that.
-            const oid = refs.get(serverRef + '^{}') || refs.get(serverRef);
+            // Always use the object id of the tag itself, and not the peeled object id.
+            const oid = refs.get(serverRef);
             actualRefsToWrite.set(serverRef, oid);
           }
         }
@@ -20225,7 +20576,7 @@ async function listpack(stream, onData) {
     const inflator = new pako.Inflate();
     while (!inflator.result) {
       const chunk = await reader.chunk();
-      if (reader.ended) break
+      if (!chunk) break
       inflator.push(chunk, false);
       if (inflator.err) {
         throw new InternalError(`Pako error: ${inflator.msg}`)
@@ -20784,38 +21135,33 @@ async function _readObject({
     return result
   }
 
-  // BEHOLD! THE ONLY TIME I'VE EVER WANTED TO USE A CASE STATEMENT WITH FOLLOWTHROUGH!
-  // eslint-ignore
-  /* eslint-disable no-fallthrough */
-  switch (result.format) {
-    case 'deflated': {
-      result.object = Buffer.from(await inflate(result.object));
-      result.format = 'wrapped';
-    }
-    case 'wrapped': {
-      if (format === 'wrapped' && result.format === 'wrapped') {
-        return result
-      }
-      const sha = await shasum(result.object);
-      if (sha !== oid) {
-        throw new InternalError(
-          `SHA check failed! Expected ${oid}, computed ${sha}`
-        )
-      }
-      const { object, type } = GitObject.unwrap(result.object);
-      result.type = type;
-      result.object = object;
-      result.format = 'content';
-    }
-    case 'content': {
-      if (format === 'content') return result
-      break
-    }
-    default: {
-      throw new InternalError(`invalid format "${result.format}"`)
-    }
+  if (result.format === 'deflated') {
+    result.object = Buffer.from(await inflate(result.object));
+    result.format = 'wrapped';
   }
-  /* eslint-enable no-fallthrough */
+
+  if (result.format === 'wrapped') {
+    if (format === 'wrapped' && result.format === 'wrapped') {
+      return result
+    }
+    const sha = await shasum(result.object);
+    if (sha !== oid) {
+      throw new InternalError(
+        `SHA check failed! Expected ${oid}, computed ${sha}`
+      )
+    }
+    const { object, type } = GitObject.unwrap(result.object);
+    result.type = type;
+    result.object = object;
+    result.format = 'content';
+  }
+
+  if (result.format === 'content') {
+    if (format === 'content') return result
+    return
+  }
+
+  throw new InternalError(`invalid format "${result.format}"`)
 }
 
 class AlreadyExistsError extends BaseError {
@@ -21096,7 +21442,7 @@ class UnknownTransportError extends BaseError {
   /**
    * @param {string} url
    * @param {string} transport
-   * @param {string} suggestion
+   * @param {string} [suggestion]
    */
   constructor(url, transport, suggestion) {
     super(
@@ -21801,7 +22147,15 @@ class GitWalkerFs {
             oid = await shasum(
               GitObject.wrap({ type: 'blob', object: await entry.content() })
             );
-            if (stage && oid === stage.oid) {
+            // Update the stats in the index so we will get a "cache hit" next time
+            // 1) if we can (because the oid and mode are the same)
+            // 2) and only if we need to (because other stats differ)
+            if (
+              stage &&
+              oid === stage.oid &&
+              stats.mode === stage.mode &&
+              compareStats(stats, stage)
+            ) {
               index.insert({
                 filepath: entry._fullpath,
                 stats,
@@ -21840,15 +22194,18 @@ function WORKDIR() {
 
 // I'm putting this in a Manager because I reckon it could benefit
 // from a LOT of cacheing.
-
-// TODO: Implement .git/info/exclude
-
 class GitIgnoreManager {
   static async isIgnored({ fs, dir, gitdir = join(dir, '.git'), filepath }) {
     // ALWAYS ignore ".git" folders.
     if (basename(filepath) === '.git') return true
     // '.' is not a valid gitignore entry, so '.' is never ignored
     if (filepath === '.') return false
+    // Check and load exclusion rules from project exclude file (.git/info/exclude)
+    let excludes = '';
+    const excludesFile = join(gitdir, 'info', 'exclude');
+    if (await fs.exists(excludesFile)) {
+      excludes = await fs.read(excludesFile, 'utf8');
+    }
     // Find all the .gitignore files that could affect this file
     const pairs = [
       {
@@ -21856,7 +22213,7 @@ class GitIgnoreManager {
         filepath,
       },
     ];
-    const pieces = filepath.split('/');
+    const pieces = filepath.split('/').filter(Boolean);
     for (let i = 1; i < pieces.length; i++) {
       const folder = pieces.slice(0, i).join('/');
       const file = pieces.slice(i).join('/');
@@ -21873,7 +22230,8 @@ class GitIgnoreManager {
       } catch (err) {
         if (err.code === 'NOENT') continue
       }
-      const ign = ignore().add(file);
+      const ign = ignore().add(excludes);
+      ign.add(file);
       // If the parent directory is excluded, we are done.
       // "It is not possible to re-include a file if a parent directory of that file is excluded. Git doesn’t list excluded directories for performance reasons, so any patterns on contained files have no effect, no matter where they are defined."
       // source: https://git-scm.com/docs/gitignore
@@ -21891,6 +22249,33 @@ class GitIgnoreManager {
 }
 
 /**
+ * Removes the directory at the specified filepath recursively. Used internally to replicate the behavior of
+ * fs.promises.rm({ recursive: true, force: true }) from Node.js 14 and above when not available. If the provided
+ * filepath resolves to a file, it will be removed.
+ *
+ * @param {import('../models/FileSystem.js').FileSystem} fs
+ * @param {string} filepath - The file or directory to remove.
+ */
+async function rmRecursive(fs, filepath) {
+  const entries = await fs.readdir(filepath);
+  if (entries == null) {
+    await fs.rm(filepath);
+  } else if (entries.length) {
+    await Promise.all(
+      entries.map(entry => {
+        const subpath = join(filepath, entry);
+        return fs.lstat(subpath).then(stat => {
+          if (!stat) return
+          return stat.isDirectory() ? rmRecursive(fs, subpath) : fs.rm(subpath)
+        })
+      })
+    ).then(() => fs.rmdir(filepath));
+  } else {
+    await fs.rmdir(filepath);
+  }
+}
+
+/**
  * This is just a collection of helper functions really. At least that's how it started.
  */
 class FileSystem {
@@ -21902,6 +22287,13 @@ class FileSystem {
       this._readFile = fs.promises.readFile.bind(fs.promises);
       this._writeFile = fs.promises.writeFile.bind(fs.promises);
       this._mkdir = fs.promises.mkdir.bind(fs.promises);
+      if (fs.promises.rm) {
+        this._rm = fs.promises.rm.bind(fs.promises);
+      } else if (fs.promises.rmdir.length > 1) {
+        this._rm = fs.promises.rmdir.bind(fs.promises);
+      } else {
+        this._rm = rmRecursive.bind(null, this);
+      }
       this._rmdir = fs.promises.rmdir.bind(fs.promises);
       this._unlink = fs.promises.unlink.bind(fs.promises);
       this._stat = fs.promises.stat.bind(fs.promises);
@@ -21913,6 +22305,13 @@ class FileSystem {
       this._readFile = pify(fs.readFile.bind(fs));
       this._writeFile = pify(fs.writeFile.bind(fs));
       this._mkdir = pify(fs.mkdir.bind(fs));
+      if (fs.rm) {
+        this._rm = pify(fs.rm.bind(fs));
+      } else if (fs.rmdir.length > 2) {
+        this._rm = pify(fs.rmdir.bind(fs));
+      } else {
+        this._rm = rmRecursive.bind(null, this);
+      }
       this._rmdir = pify(fs.rmdir.bind(fs));
       this._unlink = pify(fs.unlink.bind(fs));
       this._stat = pify(fs.stat.bind(fs));
@@ -22021,9 +22420,13 @@ class FileSystem {
   /**
    * Delete a directory without throwing an error if it is already deleted.
    */
-  async rmdir(filepath) {
+  async rmdir(filepath, opts) {
     try {
-      await this._rmdir(filepath);
+      if (opts && opts.recursive) {
+        await this._rm(filepath, opts);
+      } else {
+        await this._rmdir(filepath);
+      }
     } catch (err) {
       if (err.code !== 'ENOENT') throw err
     }
@@ -22088,7 +22491,8 @@ class FileSystem {
     // Note: FileSystem.readlink returns a buffer by default
     // so we can dump it into GitObject.write just like any other file.
     try {
-      return this._readlink(filename, opts)
+      const link = await this._readlink(filename, opts);
+      return Buffer.isBuffer(link) ? link : Buffer.from(link)
     } catch (err) {
       if (err.code === 'ENOENT') {
         return null
@@ -22178,6 +22582,12 @@ function assertParameter(name, value) {
   }
 }
 
+function posixifyPathBuffer(buffer) {
+  let idx;
+  while (~(idx = buffer.indexOf(92))) buffer[idx] = 47;
+  return buffer
+}
+
 // @ts-check
 
 /**
@@ -22240,7 +22650,7 @@ async function addToIndex({ dir, gitdir, fs, filepath, index }) {
     await Promise.all(promises);
   } else {
     const object = stats.isSymbolicLink()
-      ? await fs.readlink(join(dir, filepath))
+      ? await fs.readlink(join(dir, filepath)).then(posixifyPathBuffer)
       : await fs.read(join(dir, filepath));
     if (object === null) throw new NotFoundError(filepath)
     const oid = await _writeObject({ fs, gitdir, type: 'blob', object });
@@ -23312,6 +23722,7 @@ const worthWalking = (filepath, root) => {
  * @param {boolean} [args.noUpdateHead]
  * @param {boolean} [args.dryRun]
  * @param {boolean} [args.force]
+ * @param {boolean} [args.track]
  *
  * @returns {Promise<void>} Resolves successfully when filesystem operations are complete
  *
@@ -23329,6 +23740,7 @@ async function _checkout({
   noUpdateHead,
   dryRun,
   force,
+  track = true,
 }) {
   // Get tree oid
   let oid;
@@ -23346,11 +23758,13 @@ async function _checkout({
       gitdir,
       ref: remoteRef,
     });
-    // Set up remote tracking branch
-    const config = await GitConfigManager.get({ fs, gitdir });
-    await config.set(`branch.${ref}.remote`, remote);
-    await config.set(`branch.${ref}.merge`, `refs/heads/${ref}`);
-    await GitConfigManager.save({ fs, gitdir, config });
+    if (track) {
+      // Set up remote tracking branch
+      const config = await GitConfigManager.get({ fs, gitdir });
+      await config.set(`branch.${ref}.remote`, remote);
+      await config.set(`branch.${ref}.merge`, `refs/heads/${ref}`);
+      await GitConfigManager.save({ fs, gitdir, config });
+    }
     // Create a new branch that points at that same commit
     await GitRefManager.writeRef({
       fs,
@@ -23875,6 +24289,7 @@ async function analyze({
  * @param {boolean} [args.noUpdateHead] - If true, will update the working directory but won't update HEAD. Defaults to `false` when `ref` is provided, and `true` if `ref` is not provided.
  * @param {boolean} [args.dryRun = false] - If true, simulates a checkout so you can test whether it would succeed.
  * @param {boolean} [args.force = false] - If true, conflicts will be ignored and files will be overwritten regardless of local changes.
+ * @param {boolean} [args.track = true] - If false, will not set the remote branch tracking information. Defaults to true.
  * @param {object} [args.cache] - a [cache](cache.md) object
  *
  * @returns {Promise<void>} Resolves successfully when filesystem operations are complete
@@ -23922,6 +24337,7 @@ async function checkout({
   noUpdateHead = _ref === undefined,
   dryRun = false,
   force = false,
+  track = true,
   cache = {},
 }) {
   try {
@@ -23943,6 +24359,7 @@ async function checkout({
       noUpdateHead,
       dryRun,
       force,
+      track,
     })
   } catch (err) {
     err.caller = 'git.checkout';
@@ -24194,7 +24611,14 @@ async function parseRefsAdResponse(stream, { service }) {
   let lineOne = await read();
   // skip past any flushes
   while (lineOne === null) lineOne = await read();
+
   if (lineOne === true) throw new EmptyServerResponseError()
+
+  // Handle protocol v2 responses (Bitbucket Server doesn't include a `# service=` line)
+  if (lineOne.includes('version 2')) {
+    return parseCapabilitiesV2(read)
+  }
+
   // Clients MUST ignore an LF at the end of the line.
   if (lineOne.toString('utf8').replace(/\n$/, '') !== `# service=${service}`) {
     throw new ParseError(`# service=${service}\\n`, lineOne.toString('utf8'))
@@ -24206,10 +24630,12 @@ async function parseRefsAdResponse(stream, { service }) {
   // are returned.
   if (lineTwo === true) return { capabilities, refs, symrefs }
   lineTwo = lineTwo.toString('utf8');
+
   // Handle protocol v2 responses
   if (lineTwo.includes('version 2')) {
     return parseCapabilitiesV2(read)
   }
+
   const [firstRef, capabilitiesLine] = splitAndAssert(lineTwo, '\x00', '\\x00');
   capabilitiesLine.split(' ').map(x => capabilities.add(x));
   const [ref, name] = splitAndAssert(firstRef, ' ', ' ');
@@ -24617,8 +25043,8 @@ function filterCapabilities(server, client) {
 
 const pkg = {
   name: 'isomorphic-git',
-  version: '1.8.2',
-  agent: 'git/isomorphic-git@1.8.2',
+  version: '1.11.2',
+  agent: 'git/isomorphic-git@1.11.2',
 };
 
 class FIFO {
@@ -25386,47 +25812,58 @@ async function _clone({
   noTags,
   headers,
 }) {
-  await _init({ fs, gitdir });
-  await _addRemote({ fs, gitdir, remote, url, force: false });
-  if (corsProxy) {
-    const config = await GitConfigManager.get({ fs, gitdir });
-    await config.set(`http.corsProxy`, corsProxy);
-    await GitConfigManager.save({ fs, gitdir, config });
+  try {
+    await _init({ fs, gitdir });
+    await _addRemote({ fs, gitdir, remote, url, force: false });
+    if (corsProxy) {
+      const config = await GitConfigManager.get({ fs, gitdir });
+      await config.set(`http.corsProxy`, corsProxy);
+      await GitConfigManager.save({ fs, gitdir, config });
+    }
+    const { defaultBranch, fetchHead } = await _fetch({
+      fs,
+      cache,
+      http,
+      onProgress,
+      onMessage,
+      onAuth,
+      onAuthSuccess,
+      onAuthFailure,
+      gitdir,
+      ref,
+      remote,
+      corsProxy,
+      depth,
+      since,
+      exclude,
+      relative,
+      singleBranch,
+      headers,
+      tags: !noTags,
+    });
+    if (fetchHead === null) return
+    ref = ref || defaultBranch;
+    ref = ref.replace('refs/heads/', '');
+    // Checkout that branch
+    await _checkout({
+      fs,
+      cache,
+      onProgress,
+      dir,
+      gitdir,
+      ref,
+      remote,
+      noCheckout,
+    });
+  } catch (err) {
+    // Remove partial local repository, see #1283
+    // Ignore any error as we are already failing.
+    // The catch is necessary so the original error is not masked.
+    await fs
+      .rmdir(gitdir, { recursive: true, maxRetries: 10 })
+      .catch(() => undefined);
+    throw err
   }
-  const { defaultBranch, fetchHead } = await _fetch({
-    fs,
-    cache,
-    http,
-    onProgress,
-    onMessage,
-    onAuth,
-    onAuthSuccess,
-    onAuthFailure,
-    gitdir,
-    ref,
-    remote,
-    depth,
-    since,
-    exclude,
-    relative,
-    singleBranch,
-    headers,
-    tags: !noTags,
-  });
-  if (fetchHead === null) return
-  ref = ref || defaultBranch;
-  ref = ref.replace('refs/heads/', '');
-  // Checkout that branch
-  await _checkout({
-    fs,
-    cache,
-    onProgress,
-    dir,
-    gitdir,
-    ref,
-    remote,
-    noCheckout,
-  });
 }
 
 // @ts-check
@@ -26392,6 +26829,7 @@ async function mergeBlobs({
  * @param {number} args.committer.timestamp
  * @param {number} args.committer.timezoneOffset
  * @param {string} [args.signingKey]
+ * @param {SignCallback} [args.onSign] - a PGP signing implementation
  *
  * @returns {Promise<MergeResult>} Resolves to a description of the merge operation
  *
@@ -26409,6 +26847,7 @@ async function _merge({
   author,
   committer,
   signingKey,
+  onSign,
 }) {
   if (ours === undefined) {
     ours = await _currentBranch({ fs, gitdir, fullname: true });
@@ -26493,6 +26932,7 @@ async function _merge({
       author,
       committer,
       signingKey,
+      onSign,
       dryRun,
       noUpdateBranch,
     });
@@ -27045,6 +27485,7 @@ async function getConfigAll({
  * @typedef {Object} GetRemoteInfoResult - The object returned has the following schema:
  * @property {string[]} capabilities - The list of capabilities returned by the server (part of the Git protocol)
  * @property {Object} [refs]
+ * @property {string} [HEAD] - The default branch of the remote
  * @property {Object<string, string>} [refs.heads] - The branches on the remote
  * @property {Object<string, string>} [refs.pull] - The special branches representing pull requests (non-standard)
  * @property {Object<string, string>} [refs.tags] - The tags on the remote
@@ -27632,6 +28073,47 @@ async function isDescendent({
 // @ts-check
 
 /**
+ * Test whether a filepath should be ignored (because of .gitignore or .git/exclude)
+ *
+ * @param {object} args
+ * @param {FsClient} args.fs - a file system client
+ * @param {string} args.dir - The [working tree](dir-vs-gitdir.md) directory path
+ * @param {string} [args.gitdir=join(dir, '.git')] - [required] The [git directory](dir-vs-gitdir.md) path
+ * @param {string} args.filepath - The filepath to test
+ *
+ * @returns {Promise<boolean>} Resolves to true if the file should be ignored
+ *
+ * @example
+ * await git.isIgnored({ fs, dir: '/tutorial', filepath: 'docs/add.md' })
+ *
+ */
+async function isIgnored({
+  fs,
+  dir,
+  gitdir = join(dir, '.git'),
+  filepath,
+}) {
+  try {
+    assertParameter('fs', fs);
+    assertParameter('dir', dir);
+    assertParameter('gitdir', gitdir);
+    assertParameter('filepath', filepath);
+
+    return GitIgnoreManager.isIgnored({
+      fs: new FileSystem(fs),
+      dir,
+      gitdir,
+      filepath,
+    })
+  } catch (err) {
+    err.caller = 'git.isIgnored';
+    throw err
+  }
+}
+
+// @ts-check
+
+/**
  * List branches
  *
  * By default it lists local branches. If a 'remote' is specified, it lists the remote's branches. When listing remote branches, the HEAD branch is not filtered out, so it may be included in the list of results.
@@ -28206,6 +28688,77 @@ function compareAge(a, b) {
 
 // @ts-check
 
+// the empty file content object id
+const EMPTY_OID = 'e69de29bb2d1d6434b8b29ae775ad8c2e48c5391';
+
+async function resolveFileIdInTree({ fs, cache, gitdir, oid, fileId }) {
+  if (fileId === EMPTY_OID) return
+  const _oid = oid;
+  let filepath;
+  const result = await resolveTree({ fs, cache, gitdir, oid });
+  const tree = result.tree;
+  if (fileId === result.oid) {
+    filepath = result.path;
+  } else {
+    filepath = await _resolveFileId({
+      fs,
+      cache,
+      gitdir,
+      tree,
+      fileId,
+      oid: _oid,
+    });
+    if (Array.isArray(filepath)) {
+      if (filepath.length === 0) filepath = undefined;
+      else if (filepath.length === 1) filepath = filepath[0];
+    }
+  }
+  return filepath
+}
+
+async function _resolveFileId({
+  fs,
+  cache,
+  gitdir,
+  tree,
+  fileId,
+  oid,
+  filepaths = [],
+  parentPath = '',
+}) {
+  const walks = tree.entries().map(function(entry) {
+    let result;
+    if (entry.oid === fileId) {
+      result = join(parentPath, entry.path);
+      filepaths.push(result);
+    } else if (entry.type === 'tree') {
+      result = _readObject({
+        fs,
+        cache,
+        gitdir,
+        oid: entry.oid,
+      }).then(function({ object }) {
+        return _resolveFileId({
+          fs,
+          cache,
+          gitdir,
+          tree: GitTree.from(object),
+          fileId,
+          oid,
+          filepaths,
+          parentPath: join(parentPath, entry.path),
+        })
+      });
+    }
+    return result
+  });
+
+  await Promise.all(walks);
+  return filepaths
+}
+
+// @ts-check
+
 /**
  * Get commit descriptions from the git history
  *
@@ -28213,13 +28766,33 @@ function compareAge(a, b) {
  * @param {import('../models/FileSystem.js').FileSystem} args.fs
  * @param {any} args.cache
  * @param {string} args.gitdir
+ * @param {string=} args.filepath optional get the commit for the filepath only
  * @param {string} args.ref
  * @param {number|void} args.depth
- * @param {Date|void} args.since
+ * @param {boolean=} [args.force=false] do not throw error if filepath is not exist (works only for a single file). defaults to false
+ * @param {boolean=} [args.follow=false] Continue listing the history of a file beyond renames (works only for a single file). defaults to false
+ * @param {boolean=} args.follow Continue listing the history of a file beyond renames (works only for a single file). defaults to false
  *
- * @returns {Promise<Array<ReadCommitResult>>}
+ * @returns {Promise<Array<ReadCommitResult>>} Resolves to an array of ReadCommitResult objects
+ * @see ReadCommitResult
+ * @see CommitObject
+ *
+ * @example
+ * let commits = await git.log({ dir: '$input((/))', depth: $input((5)), ref: '$input((master))' })
+ * console.log(commits)
+ *
  */
-async function _log({ fs, cache, gitdir, ref, depth, since }) {
+async function _log({
+  fs,
+  cache,
+  gitdir,
+  filepath,
+  ref,
+  depth,
+  since,
+  force,
+  follow,
+}) {
   const sinceTimestamp =
     typeof since === 'undefined'
       ? undefined
@@ -28230,8 +28803,15 @@ async function _log({ fs, cache, gitdir, ref, depth, since }) {
   const shallowCommits = await GitShallowManager.read({ fs, gitdir });
   const oid = await GitRefManager.resolve({ fs, gitdir, ref });
   const tips = [await _readCommit({ fs, cache, gitdir, oid })];
+  let lastFileOid;
+  let lastCommit;
+  let isOk;
 
-  while (true) {
+  function endCommit(commit) {
+    if (isOk && filepath) commits.push(commit);
+  }
+
+  while (tips.length > 0) {
     const commit = tips.pop();
 
     // Stop the log if we've hit the age limit
@@ -28242,10 +28822,82 @@ async function _log({ fs, cache, gitdir, ref, depth, since }) {
       break
     }
 
-    commits.push(commit);
+    if (filepath) {
+      let vFileOid;
+      try {
+        vFileOid = await resolveFilepath({
+          fs,
+          cache,
+          gitdir,
+          oid: commit.commit.tree,
+          filepath,
+        });
+        if (lastCommit && lastFileOid !== vFileOid) {
+          commits.push(lastCommit);
+        }
+        lastFileOid = vFileOid;
+        lastCommit = commit;
+        isOk = true;
+      } catch (e) {
+        if (e instanceof NotFoundError) {
+          let found = follow && lastFileOid;
+          if (found) {
+            found = await resolveFileIdInTree({
+              fs,
+              cache,
+              gitdir,
+              oid: commit.commit.tree,
+              fileId: lastFileOid,
+            });
+            if (found) {
+              if (Array.isArray(found)) {
+                if (lastCommit) {
+                  const lastFound = await resolveFileIdInTree({
+                    fs,
+                    cache,
+                    gitdir,
+                    oid: lastCommit.commit.tree,
+                    fileId: lastFileOid,
+                  });
+                  if (Array.isArray(lastFound)) {
+                    found = found.filter(p => lastFound.indexOf(p) === -1);
+                    if (found.length === 1) {
+                      found = found[0];
+                      filepath = found;
+                      if (lastCommit) commits.push(lastCommit);
+                    } else {
+                      found = false;
+                      if (lastCommit) commits.push(lastCommit);
+                      break
+                    }
+                  }
+                }
+              } else {
+                filepath = found;
+                if (lastCommit) commits.push(lastCommit);
+              }
+            }
+          }
+          if (!found) {
+            if (!force && !follow) throw e
+            if (isOk && lastFileOid) {
+              commits.push(lastCommit);
+              // break
+            }
+          }
+          lastCommit = commit;
+          isOk = false;
+        } else throw e
+      }
+    } else {
+      commits.push(commit);
+    }
 
     // Stop the loop if we have enough commits now.
-    if (depth !== undefined && commits.length === depth) break
+    if (depth !== undefined && commits.length === depth) {
+      endCommit(commit);
+      break
+    }
 
     // If this is not a shallow commit...
     if (!shallowCommits.has(commit.oid)) {
@@ -28260,7 +28912,9 @@ async function _log({ fs, cache, gitdir, ref, depth, since }) {
     }
 
     // Stop the loop if there are no more commit parents
-    if (tips.length === 0) break
+    if (tips.length === 0) {
+      endCommit(commit);
+    }
 
     // Process tips in order by age
     tips.sort((a, b) => compareAge(a.commit, b.commit));
@@ -28277,9 +28931,12 @@ async function _log({ fs, cache, gitdir, ref, depth, since }) {
  * @param {FsClient} args.fs - a file system client
  * @param {string} [args.dir] - The [working tree](dir-vs-gitdir.md) directory path
  * @param {string} [args.gitdir=join(dir,'.git')] - [required] The [git directory](dir-vs-gitdir.md) path
+ * @param {string=} args.filepath optional get the commit for the filepath only
  * @param {string} [args.ref = 'HEAD'] - The commit to begin walking backwards through the history from
- * @param {number} [args.depth] - Limit the number of commits returned. No limit by default.
+ * @param {number=} [args.depth] - Limit the number of commits returned. No limit by default.
  * @param {Date} [args.since] - Return history newer than the given date. Can be combined with `depth` to get whichever is shorter.
+ * @param {boolean=} [args.force=false] do not throw error if filepath is not exist (works only for a single file). defaults to false
+ * @param {boolean=} [args.follow=false] Continue listing the history of a file beyond renames (works only for a single file). defaults to false
  * @param {object} [args.cache] - a [cache](cache.md) object
  *
  * @returns {Promise<Array<ReadCommitResult>>} Resolves to an array of ReadCommitResult objects
@@ -28300,9 +28957,12 @@ async function log({
   fs,
   dir,
   gitdir = join(dir, '.git'),
+  filepath,
   ref = 'HEAD',
   depth,
   since, // Date
+  force,
+  follow,
   cache = {},
 }) {
   try {
@@ -28314,9 +28974,12 @@ async function log({
       fs: new FileSystem(fs),
       cache,
       gitdir,
+      filepath,
       ref,
       depth,
       since,
+      force,
+      follow,
     })
   } catch (err) {
     err.caller = 'git.log';
@@ -28435,6 +29098,7 @@ async function merge({
       author,
       committer,
       signingKey,
+      onSign,
     })
   } catch (err) {
     err.caller = 'git.merge';
@@ -30944,7 +31608,7 @@ function version() {
 /**
  * @callback WalkerMap
  * @param {string} filename
- * @param {?WalkerEntry[]} entries
+ * @param {Array<WalkerEntry | null>} entries
  * @returns {Promise<any>}
  */
 
@@ -31666,6 +32330,7 @@ var index = {
   indexPack,
   init,
   isDescendent,
+  isIgnored,
   listBranches,
   listFiles,
   listNotes,
@@ -31733,6 +32398,7 @@ exports.hashBlob = hashBlob;
 exports.indexPack = indexPack;
 exports.init = init;
 exports.isDescendent = isDescendent;
+exports.isIgnored = isIgnored;
 exports.listBranches = listBranches;
 exports.listFiles = listFiles;
 exports.listNotes = listNotes;
