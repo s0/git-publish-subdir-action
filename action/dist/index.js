@@ -12519,7 +12519,8 @@ const main = async ({ env = process.env, log, }) => {
             };
         }
         return {
-            commitMessage: commit.commit.message,
+            // Use trim to remove the trailing newline
+            commitMessage: commit.commit.message.trim(),
             sha: commit.oid,
         };
     };
