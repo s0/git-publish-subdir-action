@@ -209,9 +209,7 @@ define which files should be deleted from the target branch before copying the
 new files over.
 
 The environment variable `CLEAR_GLOBS_FILE` should point to the path of the
-glob file (which can have any name) relative to root of the repository.
-**(Note: this is not the root of the `target` branch, the file should be defined
-on the same branch as the one running this workflow)**
+glob file (which can have any name) relative to root of the target repository.
 
 #### Example
 
@@ -252,6 +250,17 @@ initial1
 
 An empty file can be used to indicate that the branch should not be cleared at
 all.
+
+**Note: using this feature will disable the default functionality of deleting
+everything, and you will need to specify exactly what needs to be deleted.**
+
+**If the `CLEAR_GLOBS_FILE` has the following contents, then this is the same as
+the default behaviour:**
+
+```
+**/*
+!.git
+```
 
 ## Usage with [Deploy Keys](https://developer.github.com/v3/guides/managing-deploy-keys/#deploy-keys)
 
