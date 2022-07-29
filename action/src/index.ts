@@ -127,6 +127,16 @@ export interface EnvironmentVariables {
    */
   TAG?: string;
 
+  /**
+   * An optional string to use as the username on the git commit.
+   */
+  USERNAME?: string;
+
+  /**
+   * An optional string to use as the email on the git commit.
+   */
+  EMAIL?: string;
+
   // Implicit environment variables passed by GitHub
 
   GITHUB_REPOSITORY?: string;
@@ -329,9 +339,9 @@ export const main = async ({
   );
 
   const name =
-    event.pusher?.name || env.GITHUB_ACTOR || 'Git Publish Subdirectory';
+    env.USERNAME || event.pusher?.name || env.GITHUB_ACTOR || 'Git Publish Subdirectory';
   const email =
-    event.pusher?.email ||
+    env.EMAIL || event.pusher?.email ||
     (env.GITHUB_ACTOR
       ? `${env.GITHUB_ACTOR}@users.noreply.github.com`
       : 'nobody@nowhere');
