@@ -25,8 +25,8 @@ it('Test custom username and email', async () => {
       FOLDER: folders.dataDir,
       SSH_PRIVATE_KEY: (await fs.readFile(util.SSH_PRIVATE_KEY)).toString(),
       KNOWN_HOSTS_FILE: util.KNOWN_HOSTS,
-      USERNAME: 'tester',
-      EMAIL: 'tester@test.com'
+      COMMIT_NAME: 'tester',
+      COMMIT_EMAIL: 'tester@test.com'
     },
     's0/test',
     {},
