@@ -12764,8 +12764,8 @@ const main = async ({ env = process.env, log, }) => {
     if (!env.GITHUB_EVENT_PATH)
         throw new Error('Expected GITHUB_EVENT_PATH');
     const event = JSON.parse((await fs_1.promises.readFile(env.GITHUB_EVENT_PATH)).toString());
-    const name = ((_a = event.pusher) === null || _a === void 0 ? void 0 : _a.name) || env.GITHUB_ACTOR || 'Git Publish Subdirectory';
-    const email = ((_b = event.pusher) === null || _b === void 0 ? void 0 : _b.email) ||
+    const name = env.COMMIT_NAME || ((_a = event.pusher) === null || _a === void 0 ? void 0 : _a.name) || env.GITHUB_ACTOR || 'Git Publish Subdirectory';
+    const email = env.COMMIT_EMAIL || ((_b = event.pusher) === null || _b === void 0 ? void 0 : _b.email) ||
         (env.GITHUB_ACTOR
             ? `${env.GITHUB_ACTOR}@users.noreply.github.com`
             : 'nobody@nowhere');
