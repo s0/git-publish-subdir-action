@@ -3,7 +3,7 @@ name: 'Push git subdirectory as branch'
 description: 'Push a subdirectory as a branch to any git repo over SSH (or to the local repo)'
 author: 'Sam Lanning <sam@samlanning.com>'
 runs:
-  using: 'node12'
+  using: 'node16'
   main: 'action/dist/index.js'
 branding:
   icon: 'upload-cloud'
