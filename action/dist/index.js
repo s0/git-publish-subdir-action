@@ -12305,11 +12305,9 @@ const main = async ({ env = process.env, log, }) => {
     // Make sure the destination folder exists
     await (0, io_1.mkdirP)(path.resolve(REPO_TEMP, destinationFolder));
     log.log(`##[info] Copying all files from ${folder}`);
-    // TODO: replace this copy with a node implementation
-    await (0, exports.exec)(`cp -rT "${folder}"/ ${destinationFolder}`, {
-        log,
-        env: childEnv,
-        cwd: REPO_TEMP,
+    await (0, io_1.cp)(`${folder}/`, `${REPO_TEMP}/${destinationFolder}/`, {
+        recursive: true,
+        copySourceDirectory: false,
     });
     await (0, exports.exec)(`git add -A .`, { log, env: childEnv, cwd: REPO_TEMP });
     const message = config.message
