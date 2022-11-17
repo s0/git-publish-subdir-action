@@ -7,7 +7,7 @@ import { prepareTestFolders } from '../util/io';
 import { listTree } from '../util/git';
 
 it('Deploy to a branch on a custom dir that does not exist', async () => {
-    const folders = await prepareTestFolders({ __filename });
+  const folders = await prepareTestFolders({ __filename });
 
   // Create empty repo
   await util.wrappedExec('git init --bare', { cwd: folders.repoDir });
@@ -49,7 +49,7 @@ it('Deploy to a branch on a custom dir that does not exist', async () => {
       FOLDER: folders.dataDir,
       SSH_PRIVATE_KEY: (await fs.readFile(util.SSH_PRIVATE_KEY)).toString(),
       KNOWN_HOSTS_FILE: util.KNOWN_HOSTS,
-      TARGET_DIR: 'custom'
+      TARGET_DIR: 'custom',
     },
     's0/test',
     {},

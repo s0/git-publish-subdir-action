@@ -7,7 +7,7 @@ import { prepareTestFolders } from '../util/io';
 import { listTree } from '../util/git';
 
 it('Deploy to a branch on a custom dir that exists', async () => {
-    const folders = await prepareTestFolders({ __filename });
+  const folders = await prepareTestFolders({ __filename });
 
   // Create empty repo
   await util.wrappedExec('git init --bare', { cwd: folders.repoDir });
@@ -23,7 +23,10 @@ it('Deploy to a branch on a custom dir that exists', async () => {
   await fs.writeFile(path.join(folders.repoCloneDir, 'folder', 'b'), 'foobar2');
   await mkdirP(path.join(folders.repoCloneDir, 'custom', 'b'));
   await fs.writeFile(path.join(folders.repoCloneDir, 'custom', 'a'), 'foobar1');
-  await fs.writeFile(path.join(folders.repoCloneDir, 'custom', 'b', 'c'), 'foobar1');
+  await fs.writeFile(
+    path.join(folders.repoCloneDir, 'custom', 'b', 'c'),
+    'foobar1'
+  );
   await util.wrappedExec(`git add -A .`, { cwd: folders.repoCloneDir });
   await util.wrappedExec(`git config user.name "Test User"`, {
     cwd: folders.repoCloneDir,
@@ -52,7 +55,7 @@ it('Deploy to a branch on a custom dir that exists', async () => {
       FOLDER: folders.dataDir,
       SSH_PRIVATE_KEY: (await fs.readFile(util.SSH_PRIVATE_KEY)).toString(),
       KNOWN_HOSTS_FILE: util.KNOWN_HOSTS,
-      TARGET_DIR: 'custom'
+      TARGET_DIR: 'custom',
     },
     's0/test',
     {},
