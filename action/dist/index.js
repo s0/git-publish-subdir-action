@@ -395,7 +395,6 @@ function copyFile(srcFile, destFile, force) {
 }
 //# sourceMappingURL=io.js.map
 
-
 /***/ }),
 
 /***/ 2:
@@ -12283,7 +12282,7 @@ const main = async ({ env = process.env, log, }) => {
         }
         else if (env.TARGET_DIR) {
             log.log(`##[info] Removing all files from target dir ${env.TARGET_DIR} on target branch`);
-            return [`${env.TARGET_DIR}/*`, '!.git'];
+            return [`${env.TARGET_DIR}/**/*`, '!.git'];
         }
         else {
             // Remove all files

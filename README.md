@@ -257,7 +257,7 @@ everything, and you will need to specify exactly what needs to be deleted.**
 1. Default behaviour with a custom target directory:
 
    ```
-   target_dir/*
+   target_dir/**/*
    !.git
    ```
 

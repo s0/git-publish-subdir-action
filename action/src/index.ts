@@ -555,7 +555,7 @@ export const main = async ({
       log.log(
         `##[info] Removing all files from target dir ${env.TARGET_DIR} on target branch`
       );
-      return [`${env.TARGET_DIR}/*`, '!.git'];
+      return [`${env.TARGET_DIR}/**/*`, '!.git'];
     } else {
       // Remove all files
       log.log(`##[info] Removing all files from target branch`);
