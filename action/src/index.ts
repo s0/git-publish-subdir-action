@@ -5,7 +5,7 @@ import gitUrlParse from 'git-url-parse';
 import { homedir, tmpdir } from 'os';
 import * as path from 'path';
 import git from 'isomorphic-git';
-import { mkdirP } from '@actions/io';
+import { mkdirP, cp } from '@actions/io';
 
 export type Console = {
   readonly log: (...msg: unknown[]) => void;
@@ -579,11 +579,9 @@ export const main = async ({
   await mkdirP(path.resolve(REPO_TEMP, destinationFolder));
 
   log.log(`##[info] Copying all files from ${folder}`);
-  // TODO: replace this copy with a node implementation
-  await exec(`cp -rT "${folder}"/ ${destinationFolder}`, {
-    log,
-    env: childEnv,
-    cwd: REPO_TEMP,
+  await cp(`${folder}/`, `${REPO_TEMP}/${destinationFolder}/`, {
+    recursive: true,
+    copySourceDirectory: false,
   });
   await exec(`git add -A .`, { log, env: childEnv, cwd: REPO_TEMP });
   const message = config.message
