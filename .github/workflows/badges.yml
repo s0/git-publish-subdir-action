@@ -12,9 +12,9 @@ jobs:
     steps:
     - uses: actions/checkout@master
     - name: Use Node.js
-      uses: actions/setup-node@v1
+      uses: actions/setup-node@main
       with:
-        node-version: 14.x
+        node-version: 16.x
     - run: |
         cd action
         npm install
@@ -23,37 +23,37 @@ jobs:
       env:
         FOLDER: action
     - run: mkdir badges
-    - uses: emibcn/badge-action@v1
+    - uses: emibcn/badge-action@master
       with:
         label: 'libyear drift'
         status: ${{ steps.libyear.outputs.drift }} year(s) behind
         color: 'blue'
         path: 'badges/drift.svg'
-    - uses: emibcn/badge-action@v1
+    - uses: emibcn/badge-action@master
       with:
         label: 'libyear pulse'
         status: ${{ steps.libyear.outputs.pulse }} year(s) behind
         color: 'blue'
         path: 'badges/pulse.svg'
-    - uses: emibcn/badge-action@v1
+    - uses: emibcn/badge-action@master
       with:
         label: 'libyear'
         status: ${{ steps.libyear.outputs.releases }} release(s) behind
         color: 'blue'
         path: 'badges/releases.svg'
-    - uses: emibcn/badge-action@v1
+    - uses: emibcn/badge-action@master
       with:
         label: 'libyear'
         status: ${{ steps.libyear.outputs.major }} major release(s) behind
         color: 'blue'
         path: 'badges/major.svg'
-    - uses: emibcn/badge-action@v1
+    - uses: emibcn/badge-action@master
       with:
         label: 'libyear'
         status: ${{ steps.libyear.outputs.minor }} minor release(s) behind
         color: 'blue'
         path: 'badges/minor.svg'
-    - uses: emibcn/badge-action@v1
+    - uses: emibcn/badge-action@master
       with:
         label: 'libyear'
         status: ${{ steps.libyear.outputs.patch }} patch release(s) behind

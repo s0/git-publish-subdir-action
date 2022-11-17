@@ -89,9 +89,9 @@ jobs:
     steps:
     - uses: actions/checkout@master
     - name: Use Node.js
-      uses: actions/setup-node@v1
+      uses: actions/setup-node@main
       with:
-        node-version: 10.x
+        node-version: 16.x
     - name: npm install and build
       run: |
         npm install
@@ -126,9 +126,9 @@ jobs:
     steps:
     - uses: actions/checkout@master
     - name: Use Node.js
-      uses: actions/setup-node@v1
+      uses: actions/setup-node@main
       with:
-        node-version: 10.x
+        node-version: 16.x
     - name: npm install and build
       run: |
         npm install
