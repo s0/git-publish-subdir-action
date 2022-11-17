@@ -16,7 +16,7 @@
     "@types/node": "^17.0.16",
     "@zeit/ncc": "^0.22.3",
     "dotenv": "^16.0.0",
-    "git-url-parse": "^11.6.0",
+    "git-url-parse": "^13.1.0",
     "jest": "^27.5.1",
     "prettier": "^2.3.0",
     "ts-jest": "^27.1.3",
