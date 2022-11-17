@@ -21,8 +21,9 @@ it('Deploy to a branch on a custom dir that exists', async () => {
   await mkdirP(path.join(folders.repoCloneDir, 'folder'));
   await fs.writeFile(path.join(folders.repoCloneDir, 'folder', 'a'), 'foobar1');
   await fs.writeFile(path.join(folders.repoCloneDir, 'folder', 'b'), 'foobar2');
-  await mkdirP(path.join(folders.repoCloneDir, 'custom'));
+  await mkdirP(path.join(folders.repoCloneDir, 'custom', 'b'));
   await fs.writeFile(path.join(folders.repoCloneDir, 'custom', 'a'), 'foobar1');
+  await fs.writeFile(path.join(folders.repoCloneDir, 'custom', 'b', 'c'), 'foobar1');
   await util.wrappedExec(`git add -A .`, { cwd: folders.repoCloneDir });
   await util.wrappedExec(`git config user.name "Test User"`, {
     cwd: folders.repoCloneDir,
