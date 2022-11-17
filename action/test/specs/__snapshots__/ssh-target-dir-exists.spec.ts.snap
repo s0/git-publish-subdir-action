@@ -1,0 +1,10 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Deploy to a branch on a custom dir that exists 1`] = `
+"msg:Update master to output generated at <sha>
+tree:91548ed23fe65d56dfcbb58357a11c32c9b0b95d
+author:s0 <s0@users.noreply.github.com>
+msg:initial
+tree:6ceb2d248e9b9c62291e9d1a5c4afeca8a49b2c8
+author:Test User <test@example.com>"
+`;

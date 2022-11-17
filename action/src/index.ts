@@ -143,6 +143,10 @@ export interface EnvironmentVariables {
   GITHUB_EVENT_PATH?: string;
   /** The name of the person / app that that initiated the workflow */
   GITHUB_ACTOR?: string;
+  /**
+   * An optional string to change the directory where the files are copied to
+   */
+  TARGET_DIR?: string;
 }
 
 declare global {
@@ -547,6 +551,11 @@ export const main = async ({
         .map((s) => s.trim())
         .filter((s) => s !== '');
       return globList;
+    } else if (env.TARGET_DIR) {
+      log.log(
+        `##[info] Removing all files from target dir ${env.TARGET_DIR} on target branch`
+      );
+      return [`${env.TARGET_DIR}/**/*`, '!.git'];
     } else {
       // Remove all files
       log.log(`##[info] Removing all files from target branch`);
@@ -564,9 +573,18 @@ export const main = async ({
     await fs.unlink(entry);
   }
   const folder = path.resolve(process.cwd(), config.folder);
+  const destinationFolder = env.TARGET_DIR ? env.TARGET_DIR : './';
+
+  // Make sure the destination folder exists
+  await mkdirP(path.resolve(REPO_TEMP, destinationFolder));
+
   log.log(`##[info] Copying all files from ${folder}`);
   // TODO: replace this copy with a node implementation
-  await exec(`cp -rT "${folder}"/ ./`, { log, env: childEnv, cwd: REPO_TEMP });
+  await exec(`cp -rT "${folder}"/ ${destinationFolder}`, {
+    log,
+    env: childEnv,
+    cwd: REPO_TEMP,
+  });
   await exec(`git add -A .`, { log, env: childEnv, cwd: REPO_TEMP });
   const message = config.message
     .replace(/\{target\-branch\}/g, config.branch)

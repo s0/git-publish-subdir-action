@@ -12280,6 +12280,10 @@ const main = async ({ env = process.env, log, }) => {
                 .filter((s) => s !== '');
             return globList;
         }
+        else if (env.TARGET_DIR) {
+            log.log(`##[info] Removing all files from target dir ${env.TARGET_DIR} on target branch`);
+            return [`${env.TARGET_DIR}/**/*`, '!.git'];
+        }
         else {
             // Remove all files
             log.log(`##[info] Removing all files from target branch`);
@@ -12297,9 +12301,16 @@ const main = async ({ env = process.env, log, }) => {
         await fs_1.promises.unlink(entry);
     }
     const folder = path.resolve(process.cwd(), config.folder);
+    const destinationFolder = env.TARGET_DIR ? env.TARGET_DIR : './';
+    // Make sure the destination folder exists
+    await (0, io_1.mkdirP)(path.resolve(REPO_TEMP, destinationFolder));
     log.log(`##[info] Copying all files from ${folder}`);
     // TODO: replace this copy with a node implementation
-    await (0, exports.exec)(`cp -rT "${folder}"/ ./`, { log, env: childEnv, cwd: REPO_TEMP });
+    await (0, exports.exec)(`cp -rT "${folder}"/ ${destinationFolder}`, {
+        log,
+        env: childEnv,
+        cwd: REPO_TEMP,
+    });
     await (0, exports.exec)(`git add -A .`, { log, env: childEnv, cwd: REPO_TEMP });
     const message = config.message
         .replace(/\{target\-branch\}/g, config.branch)
