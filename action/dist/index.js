@@ -542,7 +542,7 @@ exports.createDirentFromStats = createDirentFromStats;
 
 // Dependencies
 
-var parseUrl = __webpack_require__(823),
+var parseUrl = __webpack_require__(800),
     isSsh = __webpack_require__(720);
 
 /**
@@ -569,21 +569,19 @@ function gitUp(input) {
     var output = parseUrl(input);
     output.token = "";
 
-    var splits = output.user.split(":");
-    if (splits.length === 2) {
-        if (splits[1] === "x-oauth-basic") {
-            output.token = splits[0];
-        } else if (splits[0] === "x-token-auth") {
-            output.token = splits[1];
-        }
+    if (output.password === "x-oauth-basic") {
+        output.token = output.user;
+    } else if (output.user === "x-token-auth") {
+        output.token = output.password;
     }
 
-    if (isSsh(output.protocols) || isSsh(input)) {
+    if (isSsh(output.protocols) || output.protocols.length === 0 && isSsh(input)) {
         output.protocol = "ssh";
     } else if (output.protocols.length) {
         output.protocol = output.protocols[0];
     } else {
         output.protocol = "file";
+        output.protocols = ["file"];
     }
 
     output.href = output.href.replace(/\/$/, "");
@@ -591,230 +589,6 @@ function gitUp(input) {
 }
 
 module.exports = gitUp;
-
-/***/ }),
-
-/***/ 53:
-/***/ (function(module) {
-
-"use strict";
-
-
-// https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
-const DATA_URL_DEFAULT_MIME_TYPE = 'text/plain';
-const DATA_URL_DEFAULT_CHARSET = 'us-ascii';
-
-const testParameter = (name, filters) => {
-	return filters.some(filter => filter instanceof RegExp ? filter.test(name) : filter === name);
-};
-
-const normalizeDataURL = (urlString, {stripHash}) => {
-	const match = /^data:(?<type>[^,]*?),(?<data>[^#]*?)(?:#(?<hash>.*))?$/.exec(urlString);
-
-	if (!match) {
-		throw new Error(`Invalid URL: ${urlString}`);
-	}
-
-	let {type, data, hash} = match.groups;
-	const mediaType = type.split(';');
-	hash = stripHash ? '' : hash;
-
-	let isBase64 = false;
-	if (mediaType[mediaType.length - 1] === 'base64') {
-		mediaType.pop();
-		isBase64 = true;
-	}
-
-	// Lowercase MIME type
-	const mimeType = (mediaType.shift() || '').toLowerCase();
-	const attributes = mediaType
-		.map(attribute => {
-			let [key, value = ''] = attribute.split('=').map(string => string.trim());
-
-			// Lowercase `charset`
-			if (key === 'charset') {
-				value = value.toLowerCase();
-
-				if (value === DATA_URL_DEFAULT_CHARSET) {
-					return '';
-				}
-			}
-
-			return `${key}${value ? `=${value}` : ''}`;
-		})
-		.filter(Boolean);
-
-	const normalizedMediaType = [
-		...attributes
-	];
-
-	if (isBase64) {
-		normalizedMediaType.push('base64');
-	}
-
-	if (normalizedMediaType.length !== 0 || (mimeType && mimeType !== DATA_URL_DEFAULT_MIME_TYPE)) {
-		normalizedMediaType.unshift(mimeType);
-	}
-
-	return `data:${normalizedMediaType.join(';')},${isBase64 ? data.trim() : data}${hash ? `#${hash}` : ''}`;
-};
-
-const normalizeUrl = (urlString, options) => {
-	options = {
-		defaultProtocol: 'http:',
-		normalizeProtocol: true,
-		forceHttp: false,
-		forceHttps: false,
-		stripAuthentication: true,
-		stripHash: false,
-		stripTextFragment: true,
-		stripWWW: true,
-		removeQueryParameters: [/^utm_\w+/i],
-		removeTrailingSlash: true,
-		removeSingleSlash: true,
-		removeDirectoryIndex: false,
-		sortQueryParameters: true,
-		...options
-	};
-
-	urlString = urlString.trim();
-
-	// Data URL
-	if (/^data:/i.test(urlString)) {
-		return normalizeDataURL(urlString, options);
-	}
-
-	if (/^view-source:/i.test(urlString)) {
-		throw new Error('`view-source:` is not supported as it is a non-standard protocol');
-	}
-
-	const hasRelativeProtocol = urlString.startsWith('//');
-	const isRelativeUrl = !hasRelativeProtocol && /^\.*\//.test(urlString);
-
-	// Prepend protocol
-	if (!isRelativeUrl) {
-		urlString = urlString.replace(/^(?!(?:\w+:)?\/\/)|^\/\//, options.defaultProtocol);
-	}
-
-	const urlObj = new URL(urlString);
-
-	if (options.forceHttp && options.forceHttps) {
-		throw new Error('The `forceHttp` and `forceHttps` options cannot be used together');
-	}
-
-	if (options.forceHttp && urlObj.protocol === 'https:') {
-		urlObj.protocol = 'http:';
-	}
-
-	if (options.forceHttps && urlObj.protocol === 'http:') {
-		urlObj.protocol = 'https:';
-	}
-
-	// Remove auth
-	if (options.stripAuthentication) {
-		urlObj.username = '';
-		urlObj.password = '';
-	}
-
-	// Remove hash
-	if (options.stripHash) {
-		urlObj.hash = '';
-	} else if (options.stripTextFragment) {
-		urlObj.hash = urlObj.hash.replace(/#?:~:text.*?$/i, '');
-	}
-
-	// Remove duplicate slashes if not preceded by a protocol
-	if (urlObj.pathname) {
-		urlObj.pathname = urlObj.pathname.replace(/(?<!\b(?:[a-z][a-z\d+\-.]{1,50}:))\/{2,}/g, '/');
-	}
-
-	// Decode URI octets
-	if (urlObj.pathname) {
-		try {
-			urlObj.pathname = decodeURI(urlObj.pathname);
-		} catch (_) {}
-	}
-
-	// Remove directory index
-	if (options.removeDirectoryIndex === true) {
-		options.removeDirectoryIndex = [/^index\.[a-z]+$/];
-	}
-
-	if (Array.isArray(options.removeDirectoryIndex) && options.removeDirectoryIndex.length > 0) {
-		let pathComponents = urlObj.pathname.split('/');
-		const lastComponent = pathComponents[pathComponents.length - 1];
-
-		if (testParameter(lastComponent, options.removeDirectoryIndex)) {
-			pathComponents = pathComponents.slice(0, pathComponents.length - 1);
-			urlObj.pathname = pathComponents.slice(1).join('/') + '/';
-		}
-	}
-
-	if (urlObj.hostname) {
-		// Remove trailing dot
-		urlObj.hostname = urlObj.hostname.replace(/\.$/, '');
-
-		// Remove `www.`
-		if (options.stripWWW && /^www\.(?!www\.)(?:[a-z\-\d]{1,63})\.(?:[a-z.\-\d]{2,63})$/.test(urlObj.hostname)) {
-			// Each label should be max 63 at length (min: 1).
-			// Source: https://en.wikipedia.org/wiki/Hostname#Restrictions_on_valid_host_names
-			// Each TLD should be up to 63 characters long (min: 2).
-			// It is technically possible to have a single character TLD, but none currently exist.
-			urlObj.hostname = urlObj.hostname.replace(/^www\./, '');
-		}
-	}
-
-	// Remove query unwanted parameters
-	if (Array.isArray(options.removeQueryParameters)) {
-		for (const key of [...urlObj.searchParams.keys()]) {
-			if (testParameter(key, options.removeQueryParameters)) {
-				urlObj.searchParams.delete(key);
-			}
-		}
-	}
-
-	if (options.removeQueryParameters === true) {
-		urlObj.search = '';
-	}
-
-	// Sort query parameters
-	if (options.sortQueryParameters) {
-		urlObj.searchParams.sort();
-	}
-
-	if (options.removeTrailingSlash) {
-		urlObj.pathname = urlObj.pathname.replace(/\/$/, '');
-	}
-
-	const oldUrlString = urlString;
-
-	// Take advantage of many of the Node `url` normalizations
-	urlString = urlObj.toString();
-
-	if (!options.removeSingleSlash && urlObj.pathname === '/' && !oldUrlString.endsWith('/') && urlObj.hash === '') {
-		urlString = urlString.replace(/\/$/, '');
-	}
-
-	// Remove ending `/` unless removeSingleSlash is false
-	if ((options.removeTrailingSlash || urlObj.pathname === '/') && urlObj.hash === '' && options.removeSingleSlash) {
-		urlString = urlString.replace(/\/$/, '');
-	}
-
-	// Restore relative protocol, if applicable
-	if (hasRelativeProtocol && !options.normalizeProtocol) {
-		urlString = urlString.replace(/^http:\/\//, '//');
-	}
-
-	// Remove http/https
-	if (options.stripProtocol) {
-		urlString = urlString.replace(/^(?:https?:)?\/\//, '');
-	}
-
-	return urlString;
-};
-
-module.exports = normalizeUrl;
-
 
 /***/ }),
 
@@ -909,108 +683,6 @@ Hash.prototype._update = function () {
 }
 
 module.exports = Hash
-
-
-/***/ }),
-
-/***/ 65:
-/***/ (function(module) {
-
-"use strict";
-
-var token = '%[a-f0-9]{2}';
-var singleMatcher = new RegExp(token, 'gi');
-var multiMatcher = new RegExp('(' + token + ')+', 'gi');
-
-function decodeComponents(components, split) {
-	try {
-		// Try to decode the entire string first
-		return decodeURIComponent(components.join(''));
-	} catch (err) {
-		// Do nothing
-	}
-
-	if (components.length === 1) {
-		return components;
-	}
-
-	split = split || 1;
-
-	// Split the array in 2 parts
-	var left = components.slice(0, split);
-	var right = components.slice(split);
-
-	return Array.prototype.concat.call([], decodeComponents(left), decodeComponents(right));
-}
-
-function decode(input) {
-	try {
-		return decodeURIComponent(input);
-	} catch (err) {
-		var tokens = input.match(singleMatcher);
-
-		for (var i = 1; i < tokens.length; i++) {
-			input = decodeComponents(tokens, i).join('');
-
-			tokens = input.match(singleMatcher);
-		}
-
-		return input;
-	}
-}
-
-function customDecodeURIComponent(input) {
-	// Keep track of all the replacements and prefill the map with the `BOM`
-	var replaceMap = {
-		'%FE%FF': '\uFFFD\uFFFD',
-		'%FF%FE': '\uFFFD\uFFFD'
-	};
-
-	var match = multiMatcher.exec(input);
-	while (match) {
-		try {
-			// Decode as big chunks as possible
-			replaceMap[match[0]] = decodeURIComponent(match[0]);
-		} catch (err) {
-			var result = decode(match[0]);
-
-			if (result !== match[0]) {
-				replaceMap[match[0]] = result;
-			}
-		}
-
-		match = multiMatcher.exec(input);
-	}
-
-	// Add `%C2` at the end of the map to make sure it does not replace the combinator before everything else
-	replaceMap['%C2'] = '\uFFFD';
-
-	var entries = Object.keys(replaceMap);
-
-	for (var i = 0; i < entries.length; i++) {
-		// Replace all decoded components
-		var key = entries[i];
-		input = input.replace(new RegExp(key, 'g'), replaceMap[key]);
-	}
-
-	return input;
-}
-
-module.exports = function (encodedURI) {
-	if (typeof encodedURI !== 'string') {
-		throw new TypeError('Expected `encodedURI` to be of type `string`, got `' + typeof encodedURI + '`');
-	}
-
-	try {
-		encodedURI = encodedURI.replace(/\+/g, ' ');
-
-		// Try the built in decoder first
-		return decodeURIComponent(encodedURI);
-	} catch (err) {
-		// Fallback to a more advanced decoder
-		return customDecodeURIComponent(encodedURI);
-	}
-};
 
 
 /***/ }),
@@ -3614,418 +3286,6 @@ function callSuccessCallback(callback, result) {
 
 /***/ }),
 
-/***/ 183:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-const strictUriEncode = __webpack_require__(690);
-const decodeComponent = __webpack_require__(65);
-const splitOnFirst = __webpack_require__(534);
-const filterObject = __webpack_require__(303);
-
-const isNullOrUndefined = value => value === null || value === undefined;
-
-function encoderForArrayFormat(options) {
-	switch (options.arrayFormat) {
-		case 'index':
-			return key => (result, value) => {
-				const index = result.length;
-
-				if (
-					value === undefined ||
-					(options.skipNull && value === null) ||
-					(options.skipEmptyString && value === '')
-				) {
-					return result;
-				}
-
-				if (value === null) {
-					return [...result, [encode(key, options), '[', index, ']'].join('')];
-				}
-
-				return [
-					...result,
-					[encode(key, options), '[', encode(index, options), ']=', encode(value, options)].join('')
-				];
-			};
-
-		case 'bracket':
-			return key => (result, value) => {
-				if (
-					value === undefined ||
-					(options.skipNull && value === null) ||
-					(options.skipEmptyString && value === '')
-				) {
-					return result;
-				}
-
-				if (value === null) {
-					return [...result, [encode(key, options), '[]'].join('')];
-				}
-
-				return [...result, [encode(key, options), '[]=', encode(value, options)].join('')];
-			};
-
-		case 'comma':
-		case 'separator':
-			return key => (result, value) => {
-				if (value === null || value === undefined || value.length === 0) {
-					return result;
-				}
-
-				if (result.length === 0) {
-					return [[encode(key, options), '=', encode(value, options)].join('')];
-				}
-
-				return [[result, encode(value, options)].join(options.arrayFormatSeparator)];
-			};
-
-		default:
-			return key => (result, value) => {
-				if (
-					value === undefined ||
-					(options.skipNull && value === null) ||
-					(options.skipEmptyString && value === '')
-				) {
-					return result;
-				}
-
-				if (value === null) {
-					return [...result, encode(key, options)];
-				}
-
-				return [...result, [encode(key, options), '=', encode(value, options)].join('')];
-			};
-	}
-}
-
-function parserForArrayFormat(options) {
-	let result;
-
-	switch (options.arrayFormat) {
-		case 'index':
-			return (key, value, accumulator) => {
-				result = /\[(\d*)\]$/.exec(key);
-
-				key = key.replace(/\[\d*\]$/, '');
-
-				if (!result) {
-					accumulator[key] = value;
-					return;
-				}
-
-				if (accumulator[key] === undefined) {
-					accumulator[key] = {};
-				}
-
-				accumulator[key][result[1]] = value;
-			};
-
-		case 'bracket':
-			return (key, value, accumulator) => {
-				result = /(\[\])$/.exec(key);
-				key = key.replace(/\[\]$/, '');
-
-				if (!result) {
-					accumulator[key] = value;
-					return;
-				}
-
-				if (accumulator[key] === undefined) {
-					accumulator[key] = [value];
-					return;
-				}
-
-				accumulator[key] = [].concat(accumulator[key], value);
-			};
-
-		case 'comma':
-		case 'separator':
-			return (key, value, accumulator) => {
-				const isArray = typeof value === 'string' && value.includes(options.arrayFormatSeparator);
-				const isEncodedArray = (typeof value === 'string' && !isArray && decode(value, options).includes(options.arrayFormatSeparator));
-				value = isEncodedArray ? decode(value, options) : value;
-				const newValue = isArray || isEncodedArray ? value.split(options.arrayFormatSeparator).map(item => decode(item, options)) : value === null ? value : decode(value, options);
-				accumulator[key] = newValue;
-			};
-
-		default:
-			return (key, value, accumulator) => {
-				if (accumulator[key] === undefined) {
-					accumulator[key] = value;
-					return;
-				}
-
-				accumulator[key] = [].concat(accumulator[key], value);
-			};
-	}
-}
-
-function validateArrayFormatSeparator(value) {
-	if (typeof value !== 'string' || value.length !== 1) {
-		throw new TypeError('arrayFormatSeparator must be single character string');
-	}
-}
-
-function encode(value, options) {
-	if (options.encode) {
-		return options.strict ? strictUriEncode(value) : encodeURIComponent(value);
-	}
-
-	return value;
-}
-
-function decode(value, options) {
-	if (options.decode) {
-		return decodeComponent(value);
-	}
-
-	return value;
-}
-
-function keysSorter(input) {
-	if (Array.isArray(input)) {
-		return input.sort();
-	}
-
-	if (typeof input === 'object') {
-		return keysSorter(Object.keys(input))
-			.sort((a, b) => Number(a) - Number(b))
-			.map(key => input[key]);
-	}
-
-	return input;
-}
-
-function removeHash(input) {
-	const hashStart = input.indexOf('#');
-	if (hashStart !== -1) {
-		input = input.slice(0, hashStart);
-	}
-
-	return input;
-}
-
-function getHash(url) {
-	let hash = '';
-	const hashStart = url.indexOf('#');
-	if (hashStart !== -1) {
-		hash = url.slice(hashStart);
-	}
-
-	return hash;
-}
-
-function extract(input) {
-	input = removeHash(input);
-	const queryStart = input.indexOf('?');
-	if (queryStart === -1) {
-		return '';
-	}
-
-	return input.slice(queryStart + 1);
-}
-
-function parseValue(value, options) {
-	if (options.parseNumbers && !Number.isNaN(Number(value)) && (typeof value === 'string' && value.trim() !== '')) {
-		value = Number(value);
-	} else if (options.parseBooleans && value !== null && (value.toLowerCase() === 'true' || value.toLowerCase() === 'false')) {
-		value = value.toLowerCase() === 'true';
-	}
-
-	return value;
-}
-
-function parse(query, options) {
-	options = Object.assign({
-		decode: true,
-		sort: true,
-		arrayFormat: 'none',
-		arrayFormatSeparator: ',',
-		parseNumbers: false,
-		parseBooleans: false
-	}, options);
-
-	validateArrayFormatSeparator(options.arrayFormatSeparator);
-
-	const formatter = parserForArrayFormat(options);
-
-	// Create an object with no prototype
-	const ret = Object.create(null);
-
-	if (typeof query !== 'string') {
-		return ret;
-	}
-
-	query = query.trim().replace(/^[?#&]/, '');
-
-	if (!query) {
-		return ret;
-	}
-
-	for (const param of query.split('&')) {
-		if (param === '') {
-			continue;
-		}
-
-		let [key, value] = splitOnFirst(options.decode ? param.replace(/\+/g, ' ') : param, '=');
-
-		// Missing `=` should be `null`:
-		// http://w3.org/TR/2012/WD-url-20120524/#collect-url-parameters
-		value = value === undefined ? null : ['comma', 'separator'].includes(options.arrayFormat) ? value : decode(value, options);
-		formatter(decode(key, options), value, ret);
-	}
-
-	for (const key of Object.keys(ret)) {
-		const value = ret[key];
-		if (typeof value === 'object' && value !== null) {
-			for (const k of Object.keys(value)) {
-				value[k] = parseValue(value[k], options);
-			}
-		} else {
-			ret[key] = parseValue(value, options);
-		}
-	}
-
-	if (options.sort === false) {
-		return ret;
-	}
-
-	return (options.sort === true ? Object.keys(ret).sort() : Object.keys(ret).sort(options.sort)).reduce((result, key) => {
-		const value = ret[key];
-		if (Boolean(value) && typeof value === 'object' && !Array.isArray(value)) {
-			// Sort object keys, not values
-			result[key] = keysSorter(value);
-		} else {
-			result[key] = value;
-		}
-
-		return result;
-	}, Object.create(null));
-}
-
-exports.extract = extract;
-exports.parse = parse;
-
-exports.stringify = (object, options) => {
-	if (!object) {
-		return '';
-	}
-
-	options = Object.assign({
-		encode: true,
-		strict: true,
-		arrayFormat: 'none',
-		arrayFormatSeparator: ','
-	}, options);
-
-	validateArrayFormatSeparator(options.arrayFormatSeparator);
-
-	const shouldFilter = key => (
-		(options.skipNull && isNullOrUndefined(object[key])) ||
-		(options.skipEmptyString && object[key] === '')
-	);
-
-	const formatter = encoderForArrayFormat(options);
-
-	const objectCopy = {};
-
-	for (const key of Object.keys(object)) {
-		if (!shouldFilter(key)) {
-			objectCopy[key] = object[key];
-		}
-	}
-
-	const keys = Object.keys(objectCopy);
-
-	if (options.sort !== false) {
-		keys.sort(options.sort);
-	}
-
-	return keys.map(key => {
-		const value = object[key];
-
-		if (value === undefined) {
-			return '';
-		}
-
-		if (value === null) {
-			return encode(key, options);
-		}
-
-		if (Array.isArray(value)) {
-			return value
-				.reduce(formatter(key), [])
-				.join('&');
-		}
-
-		return encode(key, options) + '=' + encode(value, options);
-	}).filter(x => x.length > 0).join('&');
-};
-
-exports.parseUrl = (url, options) => {
-	options = Object.assign({
-		decode: true
-	}, options);
-
-	const [url_, hash] = splitOnFirst(url, '#');
-
-	return Object.assign(
-		{
-			url: url_.split('?')[0] || '',
-			query: parse(extract(url), options)
-		},
-		options && options.parseFragmentIdentifier && hash ? {fragmentIdentifier: decode(hash, options)} : {}
-	);
-};
-
-exports.stringifyUrl = (object, options) => {
-	options = Object.assign({
-		encode: true,
-		strict: true
-	}, options);
-
-	const url = removeHash(object.url).split('?')[0] || '';
-	const queryFromUrl = exports.extract(object.url);
-	const parsedQueryFromUrl = exports.parse(queryFromUrl, {sort: false});
-
-	const query = Object.assign(parsedQueryFromUrl, object.query);
-	let queryString = exports.stringify(query, options);
-	if (queryString) {
-		queryString = `?${queryString}`;
-	}
-
-	let hash = getHash(object.url);
-	if (object.fragmentIdentifier) {
-		hash = `#${encode(object.fragmentIdentifier, options)}`;
-	}
-
-	return `${url}${queryString}${hash}`;
-};
-
-exports.pick = (input, filter, options) => {
-	options = Object.assign({
-		parseFragmentIdentifier: true
-	}, options);
-
-	const {url, query, fragmentIdentifier} = exports.parseUrl(input, options);
-	return exports.stringifyUrl({
-		url,
-		query: filterObject(query, filter),
-		fragmentIdentifier
-	}, options);
-};
-
-exports.exclude = (input, filter, options) => {
-	const exclusionFilter = Array.isArray(filter) ? key => !filter.includes(key) : (key, value) => !filter(key, value);
-
-	return exports.pick(input, exclusionFilter, options);
-};
-
-
-/***/ }),
-
 /***/ 185:
 /***/ (function(__unusedmodule, exports) {
 
@@ -4823,6 +4083,12 @@ function gitUrlParse(url) {
         throw new Error("The url must be a string.");
     }
 
+    var shorthandRe = /^([a-z\d-]{1,39})\/([-\.\w]{1,100})$/i;
+
+    if (shorthandRe.test(url)) {
+        url = "https://github.com/" + url;
+    }
+
     var urlInfo = gitUp(url),
         sourceParts = urlInfo.resource.split("."),
         splits = null;
@@ -4836,7 +4102,7 @@ function gitUrlParse(url) {
     // Note: Some hosting services (e.g. Visual Studio Team Services) allow whitespace characters
     // in the repository and owner names so we decode the URL pieces to get the correct result
     urlInfo.git_suffix = /\.git$/.test(urlInfo.pathname);
-    urlInfo.name = decodeURIComponent(urlInfo.pathname.replace(/^\//, '').replace(/\.git$/, ""));
+    urlInfo.name = decodeURIComponent((urlInfo.pathname || urlInfo.href).replace(/(^\/)|(\/$)/g, '').replace(/\.git$/, ""));
     urlInfo.owner = decodeURIComponent(urlInfo.user);
 
     switch (urlInfo.source) {
@@ -4934,7 +4200,8 @@ function gitUrlParse(url) {
                 var commitIndex = splits.indexOf("commit", 2);
                 var srcIndex = splits.indexOf("src", 2);
                 var rawIndex = splits.indexOf("raw", 2);
-                nameIndex = dashIndex > 0 ? dashIndex - 1 : blobIndex > 0 ? blobIndex - 1 : treeIndex > 0 ? treeIndex - 1 : commitIndex > 0 ? commitIndex - 1 : srcIndex > 0 ? srcIndex - 1 : rawIndex > 0 ? rawIndex - 1 : nameIndex;
+                var editIndex = splits.indexOf("edit", 2);
+                nameIndex = dashIndex > 0 ? dashIndex - 1 : blobIndex > 0 ? blobIndex - 1 : treeIndex > 0 ? treeIndex - 1 : commitIndex > 0 ? commitIndex - 1 : srcIndex > 0 ? srcIndex - 1 : rawIndex > 0 ? rawIndex - 1 : editIndex > 0 ? editIndex - 1 : nameIndex;
 
                 urlInfo.owner = splits.slice(0, nameIndex).join('/');
                 urlInfo.name = splits[nameIndex];
@@ -4947,7 +4214,8 @@ function gitUrlParse(url) {
             urlInfo.filepathtype = "";
             urlInfo.filepath = "";
             var offsetNameIndex = splits.length > nameIndex && splits[nameIndex + 1] === "-" ? nameIndex + 1 : nameIndex;
-            if (splits.length > offsetNameIndex + 2 && ["raw", "src", "blob", "tree"].indexOf(splits[offsetNameIndex + 1]) >= 0) {
+
+            if (splits.length > offsetNameIndex + 2 && ["raw", "src", "blob", "tree", "edit"].indexOf(splits[offsetNameIndex + 1]) >= 0) {
                 urlInfo.filepathtype = splits[offsetNameIndex + 1];
                 urlInfo.ref = splits[offsetNameIndex + 2];
                 if (splits.length > offsetNameIndex + 3) {
@@ -6041,31 +5309,6 @@ exports.default = AsyncReader;
 /***/ (function(module) {
 
 module.exports = require("buffer");
-
-/***/ }),
-
-/***/ 303:
-/***/ (function(module) {
-
-"use strict";
-
-module.exports = function (obj, predicate) {
-	var ret = {};
-	var keys = Object.keys(obj);
-	var isArr = Array.isArray(predicate);
-
-	for (var i = 0; i < keys.length; i++) {
-		var key = keys[i];
-		var val = obj[key];
-
-		if (isArr ? predicate.indexOf(key) !== -1 : predicate(key, val, obj)) {
-			ret[key] = val;
-		}
-	}
-
-	return ret;
-};
-
 
 /***/ }),
 
@@ -11694,36 +10937,6 @@ module.exports = Sha1
 
 /***/ }),
 
-/***/ 534:
-/***/ (function(module) {
-
-"use strict";
-
-
-module.exports = (string, separator) => {
-	if (!(typeof string === 'string' && typeof separator === 'string')) {
-		throw new TypeError('Expected the arguments to be of type `string`');
-	}
-
-	if (separator === '') {
-		return [string];
-	}
-
-	const separatorIndex = string.indexOf(separator);
-
-	if (separatorIndex === -1) {
-		return [string];
-	}
-
-	return [
-		string.slice(0, separatorIndex),
-		string.slice(separatorIndex + separator.length)
-	];
-};
-
-
-/***/ }),
-
 /***/ 537:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -12569,6 +11782,120 @@ module.exports = AsyncLock;
 
 /***/ }),
 
+/***/ 551:
+/***/ (function(__unusedmodule, exports) {
+
+/*! crc32.js (C) 2014-present SheetJS -- http://sheetjs.com */
+/* vim: set ts=2: */
+/*exported CRC32 */
+var CRC32;
+(function (factory) {
+	/*jshint ignore:start */
+	/*eslint-disable */
+	if(typeof DO_NOT_EXPORT_CRC === 'undefined') {
+		if(true) {
+			factory(exports);
+		} else {}
+	} else {
+		factory(CRC32 = {});
+	}
+	/*eslint-enable */
+	/*jshint ignore:end */
+}(function(CRC32) {
+CRC32.version = '1.2.1';
+/*global Int32Array */
+function signed_crc_table() {
+	var c = 0, table = new Array(256);
+
+	for(var n =0; n != 256; ++n){
+		c = n;
+		c = ((c&1) ? (-306674912 ^ (c >>> 1)) : (c >>> 1));
+		c = ((c&1) ? (-306674912 ^ (c >>> 1)) : (c >>> 1));
+		c = ((c&1) ? (-306674912 ^ (c >>> 1)) : (c >>> 1));
+		c = ((c&1) ? (-306674912 ^ (c >>> 1)) : (c >>> 1));
+		c = ((c&1) ? (-306674912 ^ (c >>> 1)) : (c >>> 1));
+		c = ((c&1) ? (-306674912 ^ (c >>> 1)) : (c >>> 1));
+		c = ((c&1) ? (-306674912 ^ (c >>> 1)) : (c >>> 1));
+		c = ((c&1) ? (-306674912 ^ (c >>> 1)) : (c >>> 1));
+		table[n] = c;
+	}
+
+	return typeof Int32Array !== 'undefined' ? new Int32Array(table) : table;
+}
+
+var T0 = signed_crc_table();
+function slice_by_16_tables(T) {
+	var c = 0, v = 0, n = 0, table = typeof Int32Array !== 'undefined' ? new Int32Array(4096) : new Array(4096) ;
+
+	for(n = 0; n != 256; ++n) table[n] = T[n];
+	for(n = 0; n != 256; ++n) {
+		v = T[n];
+		for(c = 256 + n; c < 4096; c += 256) v = table[c] = (v >>> 8) ^ T[v & 0xFF];
+	}
+	var out = [];
+	for(n = 1; n != 16; ++n) out[n - 1] = typeof Int32Array !== 'undefined' ? table.subarray(n * 256, n * 256 + 256) : table.slice(n * 256, n * 256 + 256);
+	return out;
+}
+var TT = slice_by_16_tables(T0);
+var T1 = TT[0],  T2 = TT[1],  T3 = TT[2],  T4 = TT[3],  T5 = TT[4];
+var T6 = TT[5],  T7 = TT[6],  T8 = TT[7],  T9 = TT[8],  Ta = TT[9];
+var Tb = TT[10], Tc = TT[11], Td = TT[12], Te = TT[13], Tf = TT[14];
+function crc32_bstr(bstr, seed) {
+	var C = seed ^ -1;
+	for(var i = 0, L = bstr.length; i < L;) C = (C>>>8) ^ T0[(C^bstr.charCodeAt(i++))&0xFF];
+	return ~C;
+}
+
+function crc32_buf(B, seed) {
+	var C = seed ^ -1, L = B.length - 15, i = 0;
+	for(; i < L;) C =
+		Tf[B[i++] ^ (C & 255)] ^
+		Te[B[i++] ^ ((C >> 8) & 255)] ^
+		Td[B[i++] ^ ((C >> 16) & 255)] ^
+		Tc[B[i++] ^ (C >>> 24)] ^
+		Tb[B[i++]] ^ Ta[B[i++]] ^ T9[B[i++]] ^ T8[B[i++]] ^
+		T7[B[i++]] ^ T6[B[i++]] ^ T5[B[i++]] ^ T4[B[i++]] ^
+		T3[B[i++]] ^ T2[B[i++]] ^ T1[B[i++]] ^ T0[B[i++]];
+	L += 15;
+	while(i < L) C = (C>>>8) ^ T0[(C^B[i++])&0xFF];
+	return ~C;
+}
+
+function crc32_str(str, seed) {
+	var C = seed ^ -1;
+	for(var i = 0, L = str.length, c = 0, d = 0; i < L;) {
+		c = str.charCodeAt(i++);
+		if(c < 0x80) {
+			C = (C>>>8) ^ T0[(C^c)&0xFF];
+		} else if(c < 0x800) {
+			C = (C>>>8) ^ T0[(C ^ (192|((c>>6)&31)))&0xFF];
+			C = (C>>>8) ^ T0[(C ^ (128|(c&63)))&0xFF];
+		} else if(c >= 0xD800 && c < 0xE000) {
+			c = (c&1023)+64; d = str.charCodeAt(i++)&1023;
+			C = (C>>>8) ^ T0[(C ^ (240|((c>>8)&7)))&0xFF];
+			C = (C>>>8) ^ T0[(C ^ (128|((c>>2)&63)))&0xFF];
+			C = (C>>>8) ^ T0[(C ^ (128|((d>>6)&15)|((c&3)<<4)))&0xFF];
+			C = (C>>>8) ^ T0[(C ^ (128|(d&63)))&0xFF];
+		} else {
+			C = (C>>>8) ^ T0[(C ^ (224|((c>>12)&15)))&0xFF];
+			C = (C>>>8) ^ T0[(C ^ (128|((c>>6)&63)))&0xFF];
+			C = (C>>>8) ^ T0[(C ^ (128|(c&63)))&0xFF];
+		}
+	}
+	return ~C;
+}
+CRC32.table = T0;
+// $FlowIgnore
+CRC32.bstr = crc32_bstr;
+// $FlowIgnore
+CRC32.buf = crc32_buf;
+// $FlowIgnore
+CRC32.str = crc32_str;
+}));
+
+
+/***/ }),
+
 /***/ 593:
 /***/ (function(__unusedmodule, exports, __webpack_require__) {
 
@@ -13320,10 +12647,7 @@ function getSettings(settingsOrOptions = {}) {
 "use strict";
 
 
-// Dependencies
-var protocols = __webpack_require__(737),
-    isSsh = __webpack_require__(720),
-    qs = __webpack_require__(183);
+var protocols = __webpack_require__(737);
 
 /**
  * parsePath
@@ -13334,119 +12658,69 @@ var protocols = __webpack_require__(737),
  * @param {String} url The input url.
  * @return {Object} An object containing the following fields:
  *
- *  - `protocols` (Array): An array with the url protocols (usually it has one element).
- *  - `protocol` (String): The first protocol, `"ssh"` (if the url is a ssh url) or `"file"`.
- *  - `port` (null|Number): The domain port.
- *  - `resource` (String): The url domain (including subdomains).
- *  - `user` (String): The authentication user (usually for ssh urls).
- *  - `pathname` (String): The url pathname.
- *  - `hash` (String): The url hash.
- *  - `search` (String): The url querystring value.
- *  - `href` (String): The input url.
- *  - `query` (Object): The url querystring, parsed as object.
+ *    - `protocols` (Array): An array with the url protocols (usually it has one element).
+ *    - `protocol` (String): The first protocol or `"file"`.
+ *    - `port` (String): The domain port (default: `""`).
+ *    - `resource` (String): The url domain/hostname.
+ *    - `host` (String): The url domain (including subdomain and port).
+ *    - `user` (String): The authentication user (default: `""`).
+ *    - `password` (String): The authentication password (default: `""`).
+ *    - `pathname` (String): The url pathname.
+ *    - `hash` (String): The url hash.
+ *    - `search` (String): The url querystring value (excluding `?`).
+ *    - `href` (String): The normalized input url.
+ *    - `query` (Object): The url querystring, parsed as object.
+ *    - `parse_failed` (Boolean): Whether the parsing failed or not.
  */
 function parsePath(url) {
-    url = (url || "").trim();
+
     var output = {
-        protocols: protocols(url),
+        protocols: [],
         protocol: null,
         port: null,
         resource: "",
+        host: "",
         user: "",
+        password: "",
         pathname: "",
         hash: "",
         search: "",
         href: url,
-        query: Object.create(null)
-    },
-        protocolIndex = url.indexOf("://"),
-        resourceIndex = -1,
-        splits = null,
-        parts = null;
+        query: {},
+        parse_failed: false
+    };
 
-    if (url.startsWith(".")) {
-        if (url.startsWith("./")) {
-            url = url.substring(2);
-        }
-        output.pathname = url;
-        output.protocol = "file";
-    }
-
-    var firstChar = url.charAt(1);
-    if (!output.protocol) {
+    try {
+        var parsed = new URL(url);
+        output.protocols = protocols(parsed);
         output.protocol = output.protocols[0];
-        if (!output.protocol) {
-            if (isSsh(url)) {
-                output.protocol = "ssh";
-            } else if (firstChar === "/" || firstChar === "~") {
-                url = url.substring(2);
-                output.protocol = "file";
-            } else {
-                output.protocol = "file";
-            }
-        }
-    }
-
-    if (protocolIndex !== -1) {
-        url = url.substring(protocolIndex + 3);
-    }
-
-    parts = url.split(/\/|\\/);
-    if (output.protocol !== "file") {
-        output.resource = parts.shift();
-    } else {
+        output.port = parsed.port;
+        output.resource = parsed.hostname;
+        output.host = parsed.host;
+        output.user = parsed.username || "";
+        output.password = parsed.password || "";
+        output.pathname = parsed.pathname;
+        output.hash = parsed.hash.slice(1);
+        output.search = parsed.search.slice(1);
+        output.href = parsed.href;
+        output.query = Object.fromEntries(parsed.searchParams);
+    } catch (e) {
+        // TODO Maybe check if it is a valid local file path
+        //      In any case, these will be parsed by higher
+        //      level parsers such as parse-url, git-url-parse, git-up
+        output.protocols = ["file"];
+        output.protocol = output.protocols[0];
+        output.port = "";
         output.resource = "";
+        output.user = "";
+        output.pathname = "";
+        output.hash = "";
+        output.search = "";
+        output.href = url;
+        output.query = {};
+        output.parse_failed = true;
     }
 
-    // user@domain
-    splits = output.resource.split("@");
-    if (splits.length === 2) {
-        output.user = splits[0];
-        output.resource = splits[1];
-    }
-
-    // domain.com:port
-    splits = output.resource.split(":");
-    if (splits.length === 2) {
-        output.resource = splits[0];
-        if (splits[1]) {
-            output.port = Number(splits[1]);
-            if (isNaN(output.port)) {
-                output.port = null;
-                parts.unshift(splits[1]);
-            }
-        } else {
-            output.port = null;
-        }
-    }
-
-    // Remove empty elements
-    parts = parts.filter(Boolean);
-
-    // Stringify the pathname
-    if (output.protocol === "file") {
-        output.pathname = output.href;
-    } else {
-        output.pathname = output.pathname || (output.protocol !== "file" || output.href[0] === "/" ? "/" : "") + parts.join("/");
-    }
-
-    // #some-hash
-    splits = output.pathname.split("#");
-    if (splits.length === 2) {
-        output.pathname = splits[0];
-        output.hash = splits[1];
-    }
-
-    // ?foo=bar
-    splits = output.pathname.split("?");
-    if (splits.length === 2) {
-        output.pathname = splits[0];
-        output.search = splits[1];
-    }
-
-    output.query = qs.parse(output.search);
-    output.href = output.href.replace(/\/$/, "");
-    output.pathname = output.pathname.replace(/\/$/, "");
     return output;
 }
 
@@ -14287,16 +13561,6 @@ module.exports.promise = queueAsPromised
 
 /***/ }),
 
-/***/ 690:
-/***/ (function(module) {
-
-"use strict";
-
-module.exports = str => encodeURIComponent(str).replace(/[!'()*]/g, x => `%${x.charCodeAt(0).toString(16).toUpperCase()}`);
-
-
-/***/ }),
-
 /***/ 691:
 /***/ (function(module) {
 
@@ -14974,7 +14238,7 @@ module.exports = fill;
  *
  * @name protocols
  * @function
- * @param {String} input The input url.
+ * @param {String|URL} input The input url (string or `URL` instance)
  * @param {Boolean|Number} first If `true`, the first protocol will be returned. If number, it will represent the zero-based index of the protocols array.
  * @return {Array|String} The array of protocols or the specified protocol.
  */
@@ -14984,8 +14248,16 @@ module.exports = function protocols(input, first) {
         first = 0;
     }
 
-    var index = input.indexOf("://"),
-        splits = input.substring(0, index).split("+").filter(Boolean);
+    var prots = "";
+    if (typeof input === "string") {
+        try {
+            prots = new URL(input).protocol;
+        } catch (e) {}
+    } else if (input && input.constructor === URL) {
+        prots = input.protocol;
+    }
+
+    var splits = prots.split(/\:|\+/).filter(Boolean);
 
     if (typeof first === "number") {
         return splits[first];
@@ -15925,115 +15197,349 @@ exports.default = StreamProvider;
 /***/ }),
 
 /***/ 800:
-/***/ (function(__unusedmodule, exports) {
+/***/ (function(module, __unusedexports, __webpack_require__) {
 
-/*! crc32.js (C) 2014-present SheetJS -- http://sheetjs.com */
-/* vim: set ts=2: */
-/*exported CRC32 */
-var CRC32;
-(function (factory) {
-	/*jshint ignore:start */
-	/*eslint-disable */
-	if(typeof DO_NOT_EXPORT_CRC === 'undefined') {
-		if(true) {
-			factory(exports);
-		} else {}
-	} else {
-		factory(CRC32 = {});
-	}
-	/*eslint-enable */
-	/*jshint ignore:end */
-}(function(CRC32) {
-CRC32.version = '1.2.1';
-/*global Int32Array */
-function signed_crc_table() {
-	var c = 0, table = new Array(256);
+"use strict";
 
-	for(var n =0; n != 256; ++n){
-		c = n;
-		c = ((c&1) ? (-306674912 ^ (c >>> 1)) : (c >>> 1));
-		c = ((c&1) ? (-306674912 ^ (c >>> 1)) : (c >>> 1));
-		c = ((c&1) ? (-306674912 ^ (c >>> 1)) : (c >>> 1));
-		c = ((c&1) ? (-306674912 ^ (c >>> 1)) : (c >>> 1));
-		c = ((c&1) ? (-306674912 ^ (c >>> 1)) : (c >>> 1));
-		c = ((c&1) ? (-306674912 ^ (c >>> 1)) : (c >>> 1));
-		c = ((c&1) ? (-306674912 ^ (c >>> 1)) : (c >>> 1));
-		c = ((c&1) ? (-306674912 ^ (c >>> 1)) : (c >>> 1));
-		table[n] = c;
+
+var parsePath = __webpack_require__(666);
+
+function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
+
+var parsePath__default = /*#__PURE__*/_interopDefaultLegacy(parsePath);
+
+// https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
+const DATA_URL_DEFAULT_MIME_TYPE = 'text/plain';
+const DATA_URL_DEFAULT_CHARSET = 'us-ascii';
+
+const testParameter = (name, filters) => filters.some(filter => filter instanceof RegExp ? filter.test(name) : filter === name);
+
+const normalizeDataURL = (urlString, {stripHash}) => {
+	const match = /^data:(?<type>[^,]*?),(?<data>[^#]*?)(?:#(?<hash>.*))?$/.exec(urlString);
+
+	if (!match) {
+		throw new Error(`Invalid URL: ${urlString}`);
 	}
 
-	return typeof Int32Array !== 'undefined' ? new Int32Array(table) : table;
-}
+	let {type, data, hash} = match.groups;
+	const mediaType = type.split(';');
+	hash = stripHash ? '' : hash;
 
-var T0 = signed_crc_table();
-function slice_by_16_tables(T) {
-	var c = 0, v = 0, n = 0, table = typeof Int32Array !== 'undefined' ? new Int32Array(4096) : new Array(4096) ;
-
-	for(n = 0; n != 256; ++n) table[n] = T[n];
-	for(n = 0; n != 256; ++n) {
-		v = T[n];
-		for(c = 256 + n; c < 4096; c += 256) v = table[c] = (v >>> 8) ^ T[v & 0xFF];
+	let isBase64 = false;
+	if (mediaType[mediaType.length - 1] === 'base64') {
+		mediaType.pop();
+		isBase64 = true;
 	}
-	var out = [];
-	for(n = 1; n != 16; ++n) out[n - 1] = typeof Int32Array !== 'undefined' ? table.subarray(n * 256, n * 256 + 256) : table.slice(n * 256, n * 256 + 256);
-	return out;
-}
-var TT = slice_by_16_tables(T0);
-var T1 = TT[0],  T2 = TT[1],  T3 = TT[2],  T4 = TT[3],  T5 = TT[4];
-var T6 = TT[5],  T7 = TT[6],  T8 = TT[7],  T9 = TT[8],  Ta = TT[9];
-var Tb = TT[10], Tc = TT[11], Td = TT[12], Te = TT[13], Tf = TT[14];
-function crc32_bstr(bstr, seed) {
-	var C = seed ^ -1;
-	for(var i = 0, L = bstr.length; i < L;) C = (C>>>8) ^ T0[(C^bstr.charCodeAt(i++))&0xFF];
-	return ~C;
-}
 
-function crc32_buf(B, seed) {
-	var C = seed ^ -1, L = B.length - 15, i = 0;
-	for(; i < L;) C =
-		Tf[B[i++] ^ (C & 255)] ^
-		Te[B[i++] ^ ((C >> 8) & 255)] ^
-		Td[B[i++] ^ ((C >> 16) & 255)] ^
-		Tc[B[i++] ^ (C >>> 24)] ^
-		Tb[B[i++]] ^ Ta[B[i++]] ^ T9[B[i++]] ^ T8[B[i++]] ^
-		T7[B[i++]] ^ T6[B[i++]] ^ T5[B[i++]] ^ T4[B[i++]] ^
-		T3[B[i++]] ^ T2[B[i++]] ^ T1[B[i++]] ^ T0[B[i++]];
-	L += 15;
-	while(i < L) C = (C>>>8) ^ T0[(C^B[i++])&0xFF];
-	return ~C;
-}
+	// Lowercase MIME type
+	const mimeType = (mediaType.shift() || '').toLowerCase();
+	const attributes = mediaType
+		.map(attribute => {
+			let [key, value = ''] = attribute.split('=').map(string => string.trim());
 
-function crc32_str(str, seed) {
-	var C = seed ^ -1;
-	for(var i = 0, L = str.length, c = 0, d = 0; i < L;) {
-		c = str.charCodeAt(i++);
-		if(c < 0x80) {
-			C = (C>>>8) ^ T0[(C^c)&0xFF];
-		} else if(c < 0x800) {
-			C = (C>>>8) ^ T0[(C ^ (192|((c>>6)&31)))&0xFF];
-			C = (C>>>8) ^ T0[(C ^ (128|(c&63)))&0xFF];
-		} else if(c >= 0xD800 && c < 0xE000) {
-			c = (c&1023)+64; d = str.charCodeAt(i++)&1023;
-			C = (C>>>8) ^ T0[(C ^ (240|((c>>8)&7)))&0xFF];
-			C = (C>>>8) ^ T0[(C ^ (128|((c>>2)&63)))&0xFF];
-			C = (C>>>8) ^ T0[(C ^ (128|((d>>6)&15)|((c&3)<<4)))&0xFF];
-			C = (C>>>8) ^ T0[(C ^ (128|(d&63)))&0xFF];
-		} else {
-			C = (C>>>8) ^ T0[(C ^ (224|((c>>12)&15)))&0xFF];
-			C = (C>>>8) ^ T0[(C ^ (128|((c>>6)&63)))&0xFF];
-			C = (C>>>8) ^ T0[(C ^ (128|(c&63)))&0xFF];
+			// Lowercase `charset`
+			if (key === 'charset') {
+				value = value.toLowerCase();
+
+				if (value === DATA_URL_DEFAULT_CHARSET) {
+					return '';
+				}
+			}
+
+			return `${key}${value ? `=${value}` : ''}`;
+		})
+		.filter(Boolean);
+
+	const normalizedMediaType = [
+		...attributes,
+	];
+
+	if (isBase64) {
+		normalizedMediaType.push('base64');
+	}
+
+	if (normalizedMediaType.length > 0 || (mimeType && mimeType !== DATA_URL_DEFAULT_MIME_TYPE)) {
+		normalizedMediaType.unshift(mimeType);
+	}
+
+	return `data:${normalizedMediaType.join(';')},${isBase64 ? data.trim() : data}${hash ? `#${hash}` : ''}`;
+};
+
+function normalizeUrl(urlString, options) {
+	options = {
+		defaultProtocol: 'http:',
+		normalizeProtocol: true,
+		forceHttp: false,
+		forceHttps: false,
+		stripAuthentication: true,
+		stripHash: false,
+		stripTextFragment: true,
+		stripWWW: true,
+		removeQueryParameters: [/^utm_\w+/i],
+		removeTrailingSlash: true,
+		removeSingleSlash: true,
+		removeDirectoryIndex: false,
+		sortQueryParameters: true,
+		...options,
+	};
+
+	urlString = urlString.trim();
+
+	// Data URL
+	if (/^data:/i.test(urlString)) {
+		return normalizeDataURL(urlString, options);
+	}
+
+	if (/^view-source:/i.test(urlString)) {
+		throw new Error('`view-source:` is not supported as it is a non-standard protocol');
+	}
+
+	const hasRelativeProtocol = urlString.startsWith('//');
+	const isRelativeUrl = !hasRelativeProtocol && /^\.*\//.test(urlString);
+
+	// Prepend protocol
+	if (!isRelativeUrl) {
+		urlString = urlString.replace(/^(?!(?:\w+:)?\/\/)|^\/\//, options.defaultProtocol);
+	}
+
+	const urlObject = new URL(urlString);
+
+	if (options.forceHttp && options.forceHttps) {
+		throw new Error('The `forceHttp` and `forceHttps` options cannot be used together');
+	}
+
+	if (options.forceHttp && urlObject.protocol === 'https:') {
+		urlObject.protocol = 'http:';
+	}
+
+	if (options.forceHttps && urlObject.protocol === 'http:') {
+		urlObject.protocol = 'https:';
+	}
+
+	// Remove auth
+	if (options.stripAuthentication) {
+		urlObject.username = '';
+		urlObject.password = '';
+	}
+
+	// Remove hash
+	if (options.stripHash) {
+		urlObject.hash = '';
+	} else if (options.stripTextFragment) {
+		urlObject.hash = urlObject.hash.replace(/#?:~:text.*?$/i, '');
+	}
+
+	// Remove duplicate slashes if not preceded by a protocol
+	// NOTE: This could be implemented using a single negative lookbehind
+	// regex, but we avoid that to maintain compatibility with older js engines
+	// which do not have support for that feature.
+	if (urlObject.pathname) {
+		// TODO: Replace everything below with `urlObject.pathname = urlObject.pathname.replace(/(?<!\b[a-z][a-z\d+\-.]{1,50}:)\/{2,}/g, '/');` when Safari supports negative lookbehind.
+
+		// Split the string by occurrences of this protocol regex, and perform
+		// duplicate-slash replacement on the strings between those occurrences
+		// (if any).
+		const protocolRegex = /\b[a-z][a-z\d+\-.]{1,50}:\/\//g;
+
+		let lastIndex = 0;
+		let result = '';
+		for (;;) {
+			const match = protocolRegex.exec(urlObject.pathname);
+			if (!match) {
+				break;
+			}
+
+			const protocol = match[0];
+			const protocolAtIndex = match.index;
+			const intermediate = urlObject.pathname.slice(lastIndex, protocolAtIndex);
+
+			result += intermediate.replace(/\/{2,}/g, '/');
+			result += protocol;
+			lastIndex = protocolAtIndex + protocol.length;
+		}
+
+		const remnant = urlObject.pathname.slice(lastIndex, urlObject.pathname.length);
+		result += remnant.replace(/\/{2,}/g, '/');
+
+		urlObject.pathname = result;
+	}
+
+	// Decode URI octets
+	if (urlObject.pathname) {
+		try {
+			urlObject.pathname = decodeURI(urlObject.pathname);
+		} catch {}
+	}
+
+	// Remove directory index
+	if (options.removeDirectoryIndex === true) {
+		options.removeDirectoryIndex = [/^index\.[a-z]+$/];
+	}
+
+	if (Array.isArray(options.removeDirectoryIndex) && options.removeDirectoryIndex.length > 0) {
+		let pathComponents = urlObject.pathname.split('/');
+		const lastComponent = pathComponents[pathComponents.length - 1];
+
+		if (testParameter(lastComponent, options.removeDirectoryIndex)) {
+			pathComponents = pathComponents.slice(0, -1);
+			urlObject.pathname = pathComponents.slice(1).join('/') + '/';
 		}
 	}
-	return ~C;
+
+	if (urlObject.hostname) {
+		// Remove trailing dot
+		urlObject.hostname = urlObject.hostname.replace(/\.$/, '');
+
+		// Remove `www.`
+		if (options.stripWWW && /^www\.(?!www\.)[a-z\-\d]{1,63}\.[a-z.\-\d]{2,63}$/.test(urlObject.hostname)) {
+			// Each label should be max 63 at length (min: 1).
+			// Source: https://en.wikipedia.org/wiki/Hostname#Restrictions_on_valid_host_names
+			// Each TLD should be up to 63 characters long (min: 2).
+			// It is technically possible to have a single character TLD, but none currently exist.
+			urlObject.hostname = urlObject.hostname.replace(/^www\./, '');
+		}
+	}
+
+	// Remove query unwanted parameters
+	if (Array.isArray(options.removeQueryParameters)) {
+		// eslint-disable-next-line unicorn/no-useless-spread -- We are intentionally spreading to get a copy.
+		for (const key of [...urlObject.searchParams.keys()]) {
+			if (testParameter(key, options.removeQueryParameters)) {
+				urlObject.searchParams.delete(key);
+			}
+		}
+	}
+
+	if (options.removeQueryParameters === true) {
+		urlObject.search = '';
+	}
+
+	// Sort query parameters
+	if (options.sortQueryParameters) {
+		urlObject.searchParams.sort();
+
+		// Calling `.sort()` encodes the search parameters, so we need to decode them again.
+		try {
+			urlObject.search = decodeURIComponent(urlObject.search);
+		} catch {}
+	}
+
+	if (options.removeTrailingSlash) {
+		urlObject.pathname = urlObject.pathname.replace(/\/$/, '');
+	}
+
+	const oldUrlString = urlString;
+
+	// Take advantage of many of the Node `url` normalizations
+	urlString = urlObject.toString();
+
+	if (!options.removeSingleSlash && urlObject.pathname === '/' && !oldUrlString.endsWith('/') && urlObject.hash === '') {
+		urlString = urlString.replace(/\/$/, '');
+	}
+
+	// Remove ending `/` unless removeSingleSlash is false
+	if ((options.removeTrailingSlash || urlObject.pathname === '/') && urlObject.hash === '' && options.removeSingleSlash) {
+		urlString = urlString.replace(/\/$/, '');
+	}
+
+	// Restore relative protocol, if applicable
+	if (hasRelativeProtocol && !options.normalizeProtocol) {
+		urlString = urlString.replace(/^http:\/\//, '//');
+	}
+
+	// Remove http/https
+	if (options.stripProtocol) {
+		urlString = urlString.replace(/^(?:https?:)?\/\//, '');
+	}
+
+	return urlString;
 }
-CRC32.table = T0;
-// $FlowIgnore
-CRC32.bstr = crc32_bstr;
-// $FlowIgnore
-CRC32.buf = crc32_buf;
-// $FlowIgnore
-CRC32.str = crc32_str;
-}));
+
+// Dependencies
+
+/**
+ * parseUrl
+ * Parses the input url.
+ *
+ * **Note**: This *throws* if invalid urls are provided.
+ *
+ * @name parseUrl
+ * @function
+ * @param {String} url The input url.
+ * @param {Boolean|Object} normalize Whether to normalize the url or not.
+ *                         Default is `false`. If `true`, the url will
+ *                         be normalized. If an object, it will be the
+ *                         options object sent to [`normalize-url`](https://github.com/sindresorhus/normalize-url).
+ *
+ *                         For SSH urls, normalize won't work.
+ *
+ * @return {Object} An object containing the following fields:
+ *
+ *    - `protocols` (Array): An array with the url protocols (usually it has one element).
+ *    - `protocol` (String): The first protocol, `"ssh"` (if the url is a ssh url) or `"file"`.
+ *    - `port` (null|Number): The domain port.
+ *    - `resource` (String): The url domain (including subdomains).
+ *    - `user` (String): The authentication user (usually for ssh urls).
+ *    - `pathname` (String): The url pathname.
+ *    - `hash` (String): The url hash.
+ *    - `search` (String): The url querystring value.
+ *    - `href` (String): The input url.
+ *    - `query` (Object): The url querystring, parsed as object.
+ *    - `parse_failed` (Boolean): Whether the parsing failed or not.
+ */
+const parseUrl = (url, normalize = false) => {
+
+    // Constants
+    const GIT_RE = /^(?:([a-z_][a-z0-9_-]{0,31})@|https?:\/\/)([\w\.\-@]+)[\/:]([\~,\.\w,\-,\_,\/]+?(?:\.git|\/)?)$/;
+
+    const throwErr = msg => {
+        const err = new Error(msg);
+        err.subject_url = url;
+        throw err
+    };
+
+    if (typeof url !== "string" || !url.trim()) {
+        throwErr("Invalid url.");
+    }
+
+    if (url.length > parseUrl.MAX_INPUT_LENGTH) {
+        throwErr("Input exceeds maximum length. If needed, change the value of parseUrl.MAX_INPUT_LENGTH.");
+    }
+
+    if (normalize) {
+        if (typeof normalize !== "object") {
+            normalize = {
+                stripHash: false
+            };
+        }
+        url = normalizeUrl(url, normalize);
+    }
+
+    const parsed = parsePath__default["default"](url);
+
+    // Potential git-ssh urls
+    if (parsed.parse_failed) {
+        const matched = parsed.href.match(GIT_RE);
+
+        if (matched) {
+            parsed.protocols = ["ssh"];
+            parsed.protocol = "ssh";
+            parsed.resource = matched[2];
+            parsed.host = matched[2];
+            parsed.user = matched[1];
+            parsed.pathname = `/${matched[3]}`;
+            parsed.parse_failed = false;
+        } else {
+            throwErr("URL parsing failed.");
+        }
+    }
+
+    return parsed;
+};
+
+parseUrl.MAX_INPUT_LENGTH = 2048;
+
+module.exports = parseUrl;
 
 
 /***/ }),
@@ -17278,68 +16784,6 @@ module.exports = {
 
 /***/ }),
 
-/***/ 823:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-"use strict";
-
-
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
-
-var parsePath = __webpack_require__(666),
-    normalizeUrl = __webpack_require__(53);
-
-/**
- * parseUrl
- * Parses the input url.
- *
- * **Note**: This *throws* if invalid urls are provided.
- *
- * @name parseUrl
- * @function
- * @param {String} url The input url.
- * @param {Boolean|Object} normalize Wheter to normalize the url or not.
- *                         Default is `false`. If `true`, the url will
- *                         be normalized. If an object, it will be the
- *                         options object sent to [`normalize-url`](https://github.com/sindresorhus/normalize-url).
- *
- *                         For SSH urls, normalize won't work.
- *
- * @return {Object} An object containing the following fields:
- *
- *  - `protocols` (Array): An array with the url protocols (usually it has one element).
- *  - `protocol` (String): The first protocol, `"ssh"` (if the url is a ssh url) or `"file"`.
- *  - `port` (null|Number): The domain port.
- *  - `resource` (String): The url domain (including subdomains).
- *  - `user` (String): The authentication user (usually for ssh urls).
- *  - `pathname` (String): The url pathname.
- *  - `hash` (String): The url hash.
- *  - `search` (String): The url querystring value.
- *  - `href` (String): The input url.
- *  - `query` (Object): The url querystring, parsed as object.
- */
-function parseUrl(url) {
-    var normalize = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
-
-    if (typeof url !== "string" || !url.trim()) {
-        throw new Error("Invalid url.");
-    }
-    if (normalize) {
-        if ((typeof normalize === "undefined" ? "undefined" : _typeof(normalize)) !== "object") {
-            normalize = {
-                stripHash: false
-            };
-        }
-        url = normalizeUrl(url, normalize);
-    }
-    var parsed = parsePath(url);
-    return parsed;
-}
-
-module.exports = parseUrl;
-
-/***/ }),
-
 /***/ 827:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -18177,7 +17621,7 @@ function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'defau
 
 var AsyncLock = _interopDefault(__webpack_require__(124));
 var Hash = _interopDefault(__webpack_require__(529));
-var crc32 = _interopDefault(__webpack_require__(800));
+var crc32 = _interopDefault(__webpack_require__(551));
 var pako = _interopDefault(__webpack_require__(246));
 var ignore = _interopDefault(__webpack_require__(396));
 var pify = _interopDefault(__webpack_require__(802));
