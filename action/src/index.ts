@@ -156,6 +156,8 @@ declare global {
 }
 
 const DEFAULT_MESSAGE = 'Update {target-branch} to output generated at {sha}';
+const DEFAULT_NAME = 'Github Actions';
+const DEFAULT_EMAIL = 'github-actions[bot]@users.noreply.github.com';
 
 // Error messages
 
@@ -343,16 +345,13 @@ export const main = async ({
   );
 
   const name =
-    env.COMMIT_NAME ||
-    event.pusher?.name ||
-    env.GITHUB_ACTOR ||
-    'Git Publish Subdirectory';
+    env.COMMIT_NAME || event.pusher?.name || env.GITHUB_ACTOR || DEFAULT_NAME;
   const email =
     env.COMMIT_EMAIL ||
     event.pusher?.email ||
     (env.GITHUB_ACTOR
       ? `${env.GITHUB_ACTOR}@users.noreply.github.com`
-      : 'nobody@nowhere');
+      : DEFAULT_EMAIL);
   const tag = env.TAG;
 
   // Set Git Config
@@ -593,7 +592,11 @@ export const main = async ({
     fs: fsModule,
     dir: REPO_TEMP,
     message,
-    author: { email, name },
+    author: { name, email },
+    committer:
+      name !== DEFAULT_NAME && email !== DEFAULT_EMAIL
+        ? { name: DEFAULT_NAME, email: DEFAULT_EMAIL }
+        : undefined,
   });
   if (tag) {
     log.log(`##[info] Tagging commit with ${tag}`);
