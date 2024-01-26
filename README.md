@@ -118,7 +118,7 @@ jobs:
     - name: Use Node.js
       uses: actions/setup-node@main
       with:
-        node-version: 16.x
+        node-version: 20.x
     - name: npm install and build
       run: |
         npm install
@@ -155,7 +155,7 @@ jobs:
     - name: Use Node.js
       uses: actions/setup-node@main
       with:
-        node-version: 16.x
+        node-version: 20.x
     - name: npm install and build
       run: |
         npm install
