@@ -5,13 +5,12 @@ name: Push develop to master
 on:
   push:
     branches: develop
-
 jobs:
   push-to-master:
     name: Push to Master
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@master
-    - run: |
-        git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-        git push -f origin develop:master
+      - uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
+      - run: |-
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          git push -f origin develop:master

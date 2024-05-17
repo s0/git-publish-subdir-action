@@ -1,109 +1,108 @@
 name: Scheduled tests
 on:
   schedule:
-    - cron:  '0 10 * * *'
-
+    - cron: '0 10 * * *'
 jobs:
   deploy-ssh-no-branch:
     name: Test deploying to a new branch
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@master
-    - name: Setup Dummy Data
-      run: |
-        mkdir dummy
-        echo "foobar" > "dummy/baz"
-    - name: Setup SSH Keys and known_hosts
-      env:
-        SSH_AUTH_SOCK: /tmp/ssh_agent.sock
-        SSH_PRIVATE_KEY: ${{ secrets.TESTING_PRIVATE_KEY }}
-      run: |
-        mkdir -p ~/.ssh
-        cp action/resources/known_hosts_github.com ~/.ssh/known_hosts
-        ssh-agent -a $SSH_AUTH_SOCK > /dev/null
-        ssh-add - <<< "${SSH_PRIVATE_KEY}"
-    - name: Delete existing banch
-      env:
-        SSH_AUTH_SOCK: /tmp/ssh_agent.sock
-      run: git push git@github.com:s0/git-publish-subdir-action-tests.git +:refs/heads/branch-a
-    - name: Deploy
-      uses: ./
-      env:
-        REPO: git@github.com:s0/git-publish-subdir-action-tests.git
-        BRANCH: branch-a
-        FOLDER: dummy
-        SSH_PRIVATE_KEY: ${{ secrets.TESTING_PRIVATE_KEY }}
+      - uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
+      - name: Setup Dummy Data
+        run: |
+          mkdir dummy
+          echo "foobar" > "dummy/baz"
+      - name: Setup SSH Keys and known_hosts
+        env:
+          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+          SSH_PRIVATE_KEY: ${{ secrets.TESTING_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          cp action/resources/known_hosts_github.com ~/.ssh/known_hosts
+          ssh-agent -a $SSH_AUTH_SOCK > /dev/null
+          ssh-add - <<< "${SSH_PRIVATE_KEY}"
+      - name: Delete existing banch
+        env:
+          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+        run: git push git@github.com:s0/git-publish-subdir-action-tests.git +:refs/heads/branch-a
+      - name: Deploy
+        uses: ./
+        env:
+          REPO: git@github.com:s0/git-publish-subdir-action-tests.git
+          BRANCH: branch-a
+          FOLDER: dummy
+          SSH_PRIVATE_KEY: ${{ secrets.TESTING_PRIVATE_KEY }}
   deploy-ssh-existing-branch:
     name: Test deploying to a pre-existing branch
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@master
-    - name: Setup Dummy Data
-      run: |
-        mkdir dummy
-        echo "foobar" > "dummy/baz"
-    - name: Deploy
-      uses: ./
-      env:
-        REPO: git@github.com:s0/git-publish-subdir-action-tests.git
-        BRANCH: branch-b
-        FOLDER: dummy
-        SSH_PRIVATE_KEY: ${{ secrets.TESTING_PRIVATE_KEY }}
+      - uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
+      - name: Setup Dummy Data
+        run: |
+          mkdir dummy
+          echo "foobar" > "dummy/baz"
+      - name: Deploy
+        uses: ./
+        env:
+          REPO: git@github.com:s0/git-publish-subdir-action-tests.git
+          BRANCH: branch-b
+          FOLDER: dummy
+          SSH_PRIVATE_KEY: ${{ secrets.TESTING_PRIVATE_KEY }}
   deploy-ssh-existing-branch-known_hosts:
     name: Test deploying to a pre-existing branch (with KNOWN_HOSTS_FILE)
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@master
-    - name: Setup Dummy Data
-      run: |
-        mkdir dummy
-        echo "foobar" > "dummy/baz"
-    - name: Deploy
-      uses: ./
-      env:
-        REPO: git@github.com:s0/git-publish-subdir-action-tests.git
-        BRANCH: branch-c
-        FOLDER: dummy
-        SSH_PRIVATE_KEY: ${{ secrets.TESTING_PRIVATE_KEY }}
-        KNOWN_HOSTS_FILE: action/resources/known_hosts_github.com
+      - uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
+      - name: Setup Dummy Data
+        run: |
+          mkdir dummy
+          echo "foobar" > "dummy/baz"
+      - name: Deploy
+        uses: ./
+        env:
+          REPO: git@github.com:s0/git-publish-subdir-action-tests.git
+          BRANCH: branch-c
+          FOLDER: dummy
+          SSH_PRIVATE_KEY: ${{ secrets.TESTING_PRIVATE_KEY }}
+          KNOWN_HOSTS_FILE: action/resources/known_hosts_github.com
   deploy-ssh-twice:
     name: Test deploying multiple times in one job
-    runs-on: ubuntu-latest    
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@master
-    - name: Setup Dummy Data
-      run: |
-        mkdir dummy1
-        echo "foobar1" > "dummy1/baz"
-        mkdir dummy2
-        echo "foobar2" > "dummy2/baz"
-    - name: Deploy
-      uses: ./
-      env:
-        REPO: git@github.com:s0/git-publish-subdir-action-tests.git
-        BRANCH: branch-d
-        FOLDER: dummy1
-        SSH_PRIVATE_KEY: ${{ secrets.TESTING_PRIVATE_KEY }}
-    - name: Deploy
-      uses: ./
-      env:
-        REPO: git@github.com:s0/git-publish-subdir-action-tests.git
-        BRANCH: branch-d
-        FOLDER: dummy2
-        SSH_PRIVATE_KEY: ${{ secrets.TESTING_PRIVATE_KEY }}
+      - uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
+      - name: Setup Dummy Data
+        run: |
+          mkdir dummy1
+          echo "foobar1" > "dummy1/baz"
+          mkdir dummy2
+          echo "foobar2" > "dummy2/baz"
+      - name: Deploy
+        uses: ./
+        env:
+          REPO: git@github.com:s0/git-publish-subdir-action-tests.git
+          BRANCH: branch-d
+          FOLDER: dummy1
+          SSH_PRIVATE_KEY: ${{ secrets.TESTING_PRIVATE_KEY }}
+      - name: Deploy
+        uses: ./
+        env:
+          REPO: git@github.com:s0/git-publish-subdir-action-tests.git
+          BRANCH: branch-d
+          FOLDER: dummy2
+          SSH_PRIVATE_KEY: ${{ secrets.TESTING_PRIVATE_KEY }}
   deploy-locally:
     name: Test deploying to another branch of same repo
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@master
-    - name: Setup Dummy Data
-      run: |
-        mkdir dummy
-        echo "foobar" > "dummy/baz"
-    - name: Deploy
-      uses: ./
-      env:
-        REPO: self
-        BRANCH: test-branch
-        FOLDER: dummy
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
+      - name: Setup Dummy Data
+        run: |
+          mkdir dummy
+          echo "foobar" > "dummy/baz"
+      - name: Deploy
+        uses: ./
+        env:
+          REPO: self
+          BRANCH: test-branch
+          FOLDER: dummy
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

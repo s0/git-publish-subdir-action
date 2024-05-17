@@ -5,66 +5,64 @@ on:
       - develop
   schedule:
     - cron: "0 0 * * *"
-
 jobs:
   get-badges:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@master
-    - name: Use Node.js
-      uses: actions/setup-node@main
-      with:
-        node-version: 20.x
-    - run: |
-        cd action
-        npm install
-    - id: libyear
-      uses: s0/libyear-node-action@v0.1.1
-      env:
-        FOLDER: action
-    - run: mkdir badges
-    - uses: emibcn/badge-action@master
-      with:
-        label: 'libyear drift'
-        status: ${{ steps.libyear.outputs.drift }} year(s) behind
-        color: 'blue'
-        path: 'badges/drift.svg'
-    - uses: emibcn/badge-action@master
-      with:
-        label: 'libyear pulse'
-        status: ${{ steps.libyear.outputs.pulse }} year(s) behind
-        color: 'blue'
-        path: 'badges/pulse.svg'
-    - uses: emibcn/badge-action@master
-      with:
-        label: 'libyear'
-        status: ${{ steps.libyear.outputs.releases }} release(s) behind
-        color: 'blue'
-        path: 'badges/releases.svg'
-    - uses: emibcn/badge-action@master
-      with:
-        label: 'libyear'
-        status: ${{ steps.libyear.outputs.major }} major release(s) behind
-        color: 'blue'
-        path: 'badges/major.svg'
-    - uses: emibcn/badge-action@master
-      with:
-        label: 'libyear'
-        status: ${{ steps.libyear.outputs.minor }} minor release(s) behind
-        color: 'blue'
-        path: 'badges/minor.svg'
-    - uses: emibcn/badge-action@master
-      with:
-        label: 'libyear'
-        status: ${{ steps.libyear.outputs.patch }} patch release(s) behind
-        color: 'blue'
-        path: 'badges/patch.svg'
-    - name: Push badges to gh-badges directory
-      uses: s0/git-publish-subdir-action@v2.4.1
-      env:
-        REPO: self
-        BRANCH: gh-badges
-        FOLDER: badges
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SQUASH_HISTORY: true
-
+      - uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
+      - name: Use Node.js
+        uses: actions/setup-node@c2ac33f2c62f978d6c944d9648125a294e56dc0b # main
+        with:
+          node-version: 20.x
+      - run: |
+          cd action
+          npm install
+      - id: libyear
+        uses: s0/libyear-node-action@8b1596c64e8963e9325f3d68d35df7492d5615eb # v0.1.1
+        env:
+          FOLDER: action
+      - run: mkdir badges
+      - uses: emibcn/badge-action@808173dd03e2f30c980d03ee49e181626088eee8 # master
+        with:
+          label: 'libyear drift'
+          status: ${{ steps.libyear.outputs.drift }} year(s) behind
+          color: 'blue'
+          path: 'badges/drift.svg'
+      - uses: emibcn/badge-action@808173dd03e2f30c980d03ee49e181626088eee8 # master
+        with:
+          label: 'libyear pulse'
+          status: ${{ steps.libyear.outputs.pulse }} year(s) behind
+          color: 'blue'
+          path: 'badges/pulse.svg'
+      - uses: emibcn/badge-action@808173dd03e2f30c980d03ee49e181626088eee8 # master
+        with:
+          label: 'libyear'
+          status: ${{ steps.libyear.outputs.releases }} release(s) behind
+          color: 'blue'
+          path: 'badges/releases.svg'
+      - uses: emibcn/badge-action@808173dd03e2f30c980d03ee49e181626088eee8 # master
+        with:
+          label: 'libyear'
+          status: ${{ steps.libyear.outputs.major }} major release(s) behind
+          color: 'blue'
+          path: 'badges/major.svg'
+      - uses: emibcn/badge-action@808173dd03e2f30c980d03ee49e181626088eee8 # master
+        with:
+          label: 'libyear'
+          status: ${{ steps.libyear.outputs.minor }} minor release(s) behind
+          color: 'blue'
+          path: 'badges/minor.svg'
+      - uses: emibcn/badge-action@808173dd03e2f30c980d03ee49e181626088eee8 # master
+        with:
+          label: 'libyear'
+          status: ${{ steps.libyear.outputs.patch }} patch release(s) behind
+          color: 'blue'
+          path: 'badges/patch.svg'
+      - name: Push badges to gh-badges directory
+        uses: s0/git-publish-subdir-action@16fcb65c7f1e7ce8d3d4e5f49e45dbc77251b972 # v2.4.1
+        env:
+          REPO: self
+          BRANCH: gh-badges
+          FOLDER: badges
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SQUASH_HISTORY: true
