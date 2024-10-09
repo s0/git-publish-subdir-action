@@ -1,10 +1,14 @@
 name: Test branch
-on: push
+on:
+  - push
+  - pull_request
 
 jobs:
   deploy-ssh-no-branch:
     name: Test deploying to a new branch
     runs-on: ubuntu-latest
+    # do not run from forks, as forks don’t have access to repository secrets
+    if: github.event.pull_request.head.repo.owner.login == github.event.pull_request.base.repo.owner.login
     steps:
     - uses: actions/checkout@master
     - name: Setup Dummy Data
@@ -35,6 +39,8 @@ jobs:
   deploy-ssh-existing-branch:
     name: Test deploying to a pre-existing branch
     runs-on: ubuntu-latest
+    # do not run from forks, as forks don’t have access to repository secrets
+    if: github.event.pull_request.head.repo.owner.login == github.event.pull_request.base.repo.owner.login
     steps:
     - uses: actions/checkout@master
     - name: Setup Dummy Data
@@ -52,6 +58,8 @@ jobs:
   deploy-ssh-existing-branch-known_hosts:
     name: Test deploying to a pre-existing branch (with KNOWN_HOSTS_FILE)
     runs-on: ubuntu-latest
+    # do not run from forks, as forks don’t have access to repository secrets
+    if: github.event.pull_request.head.repo.owner.login == github.event.pull_request.base.repo.owner.login
     steps:
     - uses: actions/checkout@master
     - name: Setup Dummy Data
@@ -70,6 +78,8 @@ jobs:
   deploy-ssh-twice:
     name: Test deploying multiple times in one job
     runs-on: ubuntu-latest
+    # do not run from forks, as forks don’t have access to repository secrets
+    if: github.event.pull_request.head.repo.owner.login == github.event.pull_request.base.repo.owner.login
     steps:
     - uses: actions/checkout@master
     - name: Setup Dummy Data
@@ -97,6 +107,8 @@ jobs:
   deploy-locally:
     name: Test deploying to another branch of same repo
     runs-on: ubuntu-latest
+    # do not run from forks, as forks don’t have access to repository secrets
+    if: github.event.pull_request.head.repo.owner.login == github.event.pull_request.base.repo.owner.login
     steps:
     - uses: actions/checkout@master
     - name: Setup Dummy Data

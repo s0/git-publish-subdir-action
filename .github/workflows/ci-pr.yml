@@ -10,7 +10,7 @@ jobs:
     - name: Use Node.js
       uses: actions/setup-node@main
       with:
-        node-version: 16.x
+        node-version: 20.x
     - name: 'Build'
       run: |
         cd action
@@ -21,12 +21,16 @@ jobs:
   unit-tests:
     name: Run Unit Tests
     runs-on: ubuntu-latest
+    # do not run from forks, as forks don’t have access to repository secrets
+    if: github.event.pull_request.head.repo.owner.login == github.event.pull_request.base.repo.owner.login
     steps:
+    - name: Install docker-compose
+      run: sudo apt-get update && sudo apt-get install -y docker-compose
     - uses: actions/checkout@master
     - name: Use Node.js
       uses: actions/setup-node@main
       with:
-        node-version: 16.x
+        node-version: 20.x
     - name: Install NPM Packages
       run: |
         cd action
