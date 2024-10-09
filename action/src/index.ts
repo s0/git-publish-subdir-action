@@ -644,4 +644,7 @@ export const main = async ({
     log.log(`##[info] Killing ssh-agent`);
     await exec(`ssh-agent -k`, { log, env: childEnv });
   }
+
+  log.log(`##[info] Removing temporary directory`);
+  await fs.rm(TMP_PATH, { recursive: true });
 };
