@@ -567,10 +567,12 @@ export const main = async ({
     dot: true,
     followSymbolicLinks: false,
     cwd: REPO_TEMP,
+    onlyDirectories: false,
+    onlyFiles: false,
   });
   // Delete all files from the filestream
   for await (const entry of filesToDelete) {
-    await fs.unlink(entry);
+    await fs.rm(entry, { recursive: true, force: true });
   }
   const folder = path.resolve(process.cwd(), config.folder);
   const destinationFolder = env.TARGET_DIR ? env.TARGET_DIR : './';
