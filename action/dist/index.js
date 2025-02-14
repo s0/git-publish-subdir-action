@@ -414,18 +414,89 @@ const main = async ({ env = process.env, log, }) => {
         recursive: true,
         copySourceDirectory: false,
     });
-    await (0, exports.exec)(`git add -A .`, { log, env: childEnv, cwd: REPO_TEMP });
-    const message = config.message
-        .replace(/\{target\-branch\}/g, config.branch)
-        .replace(/\{sha\}/g, gitInfo.sha.substr(0, 7))
-        .replace(/\{long\-sha\}/g, gitInfo.sha)
-        .replace(/\{msg\}/g, gitInfo.commitMessage);
+
+    // Get all files
+    const Path = require("path");
+    const FS   = require("fs");
+    let Files = [];
+    function ThroughDirectory(Directory) {
+        FS.readdirSync(Directory).forEach(File => {
+            const Absolute = Path.join(Directory, File);
+            const Stat = FS.statSync(Absolute);
+            if (Directory === '.git') return Files;
+            else if (Stat.isDirectory()) return ThroughDirectory(Absolute);
+            else return Files.push({filename: Absolute, size: Stat.size});
+        });
+    }
+    ThroughDirectory(REPO_TEMP);
+    // Sort by size
+    Files.sort(function(first, second) {
+        if ( first.size > second.size ){
+            return -1;
+        }else{
+            return 1;
+        }
+    });
+    // add, commit and push every 500M
+    let FilesSplitted = [];
+    let filesSize = 0;
+    let filesTmp = [];
+    while ( Files.length ) {
+        let file = Files.pop();
+        await (0, exports.exec)(`git add -A ${file.filename}`, { log, env: childEnv, cwd: REPO_TEMP });
+        if ( filesSize + file.size < 500000000 ) {
+            filesSize += file.size;
+            filesTmp.push(file.filename);
+        } else {
+            let files_length = filesTmp.length;
+            let files_size = (filesSize + file.size)/1000000;
+            log.log("##[into] %d files are selected, total size is %d M", files_length, files_size);
+            const message = 'Update {target-branch} to output generated at {sha}, add {length} files with a total size of {size} MB.'
+                  .replace(/\{target\-branch\}/g, config.branch)
+                  .replace(/\{sha\}/g, gitInfo.sha.substr(0, 7))
+                  .replace(/\{long\-sha\}/g, gitInfo.sha)
+                  .replace(/\{msg\}/g, gitInfo.commitMessage)
+                  .replace(/\{length\}/g, files_length)
+                  .replace(/\{size\}/g, files_size);
+            await isomorphic_git_1.default.commit({
+                fs: fs_1.default,
+                dir: REPO_TEMP,
+                message,
+                author: { email, name },
+            });
+            if ( FilesSplitted.length > 0)  {
+                const forceArg = config.squashHistory ? '-f' : '';
+                const push = await (0, exports.exec)(`git push ${forceArg} origin "${config.branch}"`, { log, env: childEnv, cwd: REPO_TEMP });
+                log.log(push.stdout);
+            }
+            // update FilesSplitted
+            FilesSplitted.push(filesTmp);
+            filesTmp = [file.filename];
+            filesSize = file.size;
+        }
+    }
+    FilesSplitted.push(filesTmp);
+    let files_length = filesTmp.length;
+    let files_size = (filesSize)/1000000;
+    log.log("##[into] %d files are selected, total size is %d M", files_length, files_size);
+    const message = 'Update {target-branch} to output generated at {sha}, add {length} files with a total size of {size} MB.'
+          .replace(/\{target\-branch\}/g, config.branch)
+          .replace(/\{sha\}/g, gitInfo.sha.substr(0, 7))
+          .replace(/\{long\-sha\}/g, gitInfo.sha)
+          .replace(/\{msg\}/g, gitInfo.commitMessage)
+          .replace(/\{length\}/g, files_length)
+          .replace(/\{size\}/g, files_size);
     await isomorphic_git_1.default.commit({
         fs: fs_1.default,
         dir: REPO_TEMP,
         message,
         author: { email, name },
     });
+    if ( FilesSplitted.length > 0)  {
+        const forceArg = config.squashHistory ? '-f' : '';
+        const push = await (0, exports.exec)(`git push ${forceArg} origin "${config.branch}"`, { log, env: childEnv, cwd: REPO_TEMP });
+        log.log(push.stdout);
+    }
     if (tag) {
         log.log(`##[info] Tagging commit with ${tag}`);
         await isomorphic_git_1.default.tag({
