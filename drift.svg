@@ -1,0 +1,20 @@
+<svg width="201.3" height="20" viewBox="0 0 2013 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="libyear drift: 34.89 year(s) behind">
+  <title>libyear drift: 34.89 year(s) behind</title>
+  <linearGradient id="a" x2="0" y2="100%">
+    <stop offset="0" stop-opacity=".1" stop-color="#EEE"/>
+    <stop offset="1" stop-opacity=".1"/>
+  </linearGradient>
+  <mask id="m"><rect width="2013" height="200" rx="30" fill="#FFF"/></mask>
+  <g mask="url(#m)">
+    <rect width="740" height="200" fill="#555"/>
+    <rect width="1273" height="200" fill="#08C" x="740"/>
+    <rect width="2013" height="200" fill="url(#a)"/>
+  </g>
+  <g aria-hidden="true" fill="#fff" text-anchor="start" font-family="Verdana,DejaVu Sans,sans-serif" font-size="110">
+    <text x="60" y="148" textLength="640" fill="#000" opacity="0.25">libyear drift</text>
+    <text x="50" y="138" textLength="640">libyear drift</text>
+    <text x="795" y="148" textLength="1173" fill="#000" opacity="0.25">34.89 year(s) behind</text>
+    <text x="785" y="138" textLength="1173">34.89 year(s) behind</text>
+  </g>
+  
+</svg>
