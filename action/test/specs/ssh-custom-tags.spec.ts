@@ -29,7 +29,7 @@ it('Test custom tags', async () => {
     },
     's0/test',
     {},
-    's0'
+    's0',
   );
   // Run the action again to make sure that a commit is added even when there are
   // no content changes
@@ -46,7 +46,7 @@ it('Test custom tags', async () => {
     },
     's0/test',
     {},
-    's0'
+    's0',
   );
 
   {
@@ -56,7 +56,7 @@ it('Test custom tags', async () => {
         'git log --pretty="format:msg:%B%ntree:%T%nauthor:%an <%ae>" branch-a',
         {
           cwd: folders.repoDir,
-        }
+        },
       )
     ).stdout;
     const fullSha = await util.getFullRepoSha();
@@ -72,7 +72,7 @@ it('Test custom tags', async () => {
         'git log --pretty="format:msg:%B%ntree:%T%nauthor:%an <%ae>" foo-bar-tag-v0.1.2',
         {
           cwd: folders.repoDir,
-        }
+        },
       )
     ).stdout;
     const fullSha = await util.getFullRepoSha();

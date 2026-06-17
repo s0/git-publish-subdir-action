@@ -47,7 +47,7 @@ it('Spaces in folder names are correctly handled', async () => {
     },
     's0/test',
     {},
-    's0'
+    's0',
   );
 
   // Check that the log of the repo is as expected
@@ -57,7 +57,7 @@ it('Spaces in folder names are correctly handled', async () => {
       'git log --pretty="format:msg:%s%ntree:%T%nauthor:%an <%ae>" master',
       {
         cwd: folders.repoDir,
-      }
+      },
     )
   ).stdout;
   const sha = await util.getRepoSha();

@@ -34,7 +34,7 @@ itGithubOnly('Deploy to an existing branch on GitHub', async () => {
     },
     's0/test',
     {},
-    's0'
+    's0',
   );
 
   // Check that the log of the repo is as expected

@@ -25,7 +25,7 @@ it('Deploy to a branch on a custom dir that exists', async () => {
   await fs.writeFile(path.join(folders.repoCloneDir, 'custom', 'a'), 'foobar1');
   await fs.writeFile(
     path.join(folders.repoCloneDir, 'custom', 'b', 'c'),
-    'foobar1'
+    'foobar1',
   );
   await util.wrappedExec(`git add -A .`, { cwd: folders.repoCloneDir });
   await util.wrappedExec(`git config user.name "Test User"`, {
@@ -59,7 +59,7 @@ it('Deploy to a branch on a custom dir that exists', async () => {
     },
     's0/test',
     {},
-    's0'
+    's0',
   );
 
   // Check that the list of files in the root of the target repo is as expected
@@ -83,7 +83,7 @@ it('Deploy to a branch on a custom dir that exists', async () => {
       'git log --pretty="format:msg:%s%ntree:%T%nauthor:%an <%ae>" master',
       {
         cwd: folders.repoDir,
-      }
+      },
     )
   ).stdout;
   const sha = await util.getRepoSha();

@@ -28,7 +28,7 @@ it('Deploy to a new branch over ssh', async () => {
     },
     's0/test',
     {},
-    's0'
+    's0',
   );
 
   // Check that the log of the repo is as expected
@@ -38,7 +38,7 @@ it('Deploy to a new branch over ssh', async () => {
       'git log --pretty="format:msg:%s%ntree:%T%nauthor:%an <%ae>" branch-a',
       {
         cwd: folders.repoDir,
-      }
+      },
     )
   ).stdout;
   const sha = await util.getRepoSha();

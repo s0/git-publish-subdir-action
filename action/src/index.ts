@@ -22,7 +22,7 @@ export const exec = async (
     env?: any;
     cwd?: string;
     log: Console;
-  }
+  },
 ) => {
   const { log } = opts;
   const env = opts?.env || {};
@@ -58,12 +58,14 @@ export const exec = async (
     ps.on('close', (code) => {
       if (code !== 0) {
         reject(
-          new Error('Process exited with code: ' + code + ':\n' + output.stderr)
+          new Error(
+            'Process exited with code: ' + code + ':\n' + output.stderr,
+          ),
         );
       } else {
         resolve(output);
       }
-    })
+    }),
   );
 };
 
@@ -226,7 +228,7 @@ export interface Event {
 }
 
 const genConfig: (env?: EnvironmentVariables) => Config = (
-  env = process.env
+  env = process.env,
 ) => {
   if (!env.REPO) throw new Error('REPO must be specified');
   if (!env.BRANCH) throw new Error('BRANCH must be specified');
@@ -289,7 +291,7 @@ const writeToProcess = (
     env: { [id: string]: string | undefined };
     data: string;
     log: Console;
-  }
+  },
 ) =>
   new Promise<void>((resolve, reject) => {
     const child = child_process.spawn(command, args, {
@@ -331,7 +333,7 @@ export const main = async ({
   // Calculate paths that use temp diractory
 
   const TMP_PATH = await fs.mkdtemp(
-    path.join(tmpdir(), 'git-publish-subdir-action-')
+    path.join(tmpdir(), 'git-publish-subdir-action-'),
   );
   const REPO_TEMP = path.join(TMP_PATH, 'repo');
   const SSH_AUTH_SOCK = path.join(TMP_PATH, 'ssh_agent.sock');
@@ -339,7 +341,7 @@ export const main = async ({
   if (!env.GITHUB_EVENT_PATH) throw new Error('Expected GITHUB_EVENT_PATH');
 
   const event: Event = JSON.parse(
-    (await fs.readFile(env.GITHUB_EVENT_PATH)).toString()
+    (await fs.readFile(env.GITHUB_EVENT_PATH)).toString(),
   );
 
   const name =
@@ -382,7 +384,7 @@ export const main = async ({
       const next = path.dirname(dir);
       if (next === dir) {
         log.log(
-          `##[info] Not running in git directory, unable to get information about source commit`
+          `##[info] Not running in git directory, unable to get information about source commit`,
         );
         return {
           commitMessage: '',
@@ -439,7 +441,7 @@ export const main = async ({
     log.log(`Setting up ssh-agent on ${SSH_AUTH_SOCK}`);
     const sshAgentMatch = SSH_AGENT_PID_EXTRACT.exec(
       (await exec(`ssh-agent -a ${SSH_AUTH_SOCK}`, { log, env: childEnv }))
-        .stdout
+        .stdout,
     );
     /* istanbul ignore if */
     if (!sshAgentMatch) throw new Error('Unexpected output from ssh-agent');
@@ -482,7 +484,7 @@ export const main = async ({
       /* istanbul ignore if */
       if (s.indexOf("Couldn't find remote ref") === -1) {
         log.error(
-          "##[warning] Failed to fetch target branch, probably doesn't exist"
+          "##[warning] Failed to fetch target branch, probably doesn't exist",
         );
         log.error(err);
       }
@@ -543,7 +545,7 @@ export const main = async ({
     if (env.CLEAR_GLOBS_FILE) {
       // We need to use a custom mechanism to clear the files
       log.log(
-        `##[info] Using custom glob file to clear target branch ${env.CLEAR_GLOBS_FILE}`
+        `##[info] Using custom glob file to clear target branch ${env.CLEAR_GLOBS_FILE}`,
       );
       const globList = (await fs.readFile(env.CLEAR_GLOBS_FILE))
         .toString()
@@ -553,7 +555,7 @@ export const main = async ({
       return globList;
     } else if (env.TARGET_DIR) {
       log.log(
-        `##[info] Removing all files from target dir ${env.TARGET_DIR} on target branch`
+        `##[info] Removing all files from target dir ${env.TARGET_DIR} on target branch`,
       );
       return [`${env.TARGET_DIR}/**/*`, '!.git'];
     } else {
@@ -635,7 +637,7 @@ export const main = async ({
   const tagsArg = tag ? '--tags' : '';
   const push = await exec(
     `git push ${forceArg} origin "${config.branch}" ${tagsArg}`,
-    { log, env: childEnv, cwd: REPO_TEMP }
+    { log, env: childEnv, cwd: REPO_TEMP },
   );
   log.log(push.stdout);
   log.log(`##[info] Deployment Successful`);

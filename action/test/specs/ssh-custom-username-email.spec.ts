@@ -30,7 +30,7 @@ it('Test custom username and email', async () => {
     },
     's0/test',
     {},
-    's0'
+    's0',
   );
 
   // Check that the log of the repo is as expected
@@ -40,7 +40,7 @@ it('Test custom username and email', async () => {
       'git log --pretty="format:msg:%s%ntree:%T%nauthor:%an <%ae>" branch-a',
       {
         cwd: folders.repoDir,
-      }
+      },
     )
   ).stdout;
   const sha = await util.getRepoSha();

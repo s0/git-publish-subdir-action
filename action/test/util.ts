@@ -20,23 +20,25 @@ export const SSH_PRIVATE_KEY = path.join(DATA_DIR, 'id');
 export const SSH_PRIVATE_KEY_INVALID = path.join(DATA_DIR, 'id2');
 export const KNOWN_HOSTS = path.join(DATA_DIR, 'known_hosts');
 
-export const DOCKER_IMAGE_TEST_DIR = '/home/node/repo/action/test'
+export const DOCKER_IMAGE_TEST_DIR = '/home/node/repo/action/test';
 
 export const NODE_CONTAINER = 'test-node';
 
 export const getGitHubSSHPrivateKey = () => {
   const key = process.env.GITHUB_SSH_PRIVATE_KEY;
   if (!key)
-    throw new Error('Environment variable GITHUB_SSH_PRIVATE_KEY not set, needed for tests');
+    throw new Error(
+      'Environment variable GITHUB_SSH_PRIVATE_KEY not set, needed for tests',
+    );
   return key;
-}
+};
 
 export const wrappedExec = async (
   command: string,
   opts?: child_process.ExecOptions,
   extra?: {
     logToConsole?: true;
-  }
+  },
 ) => {
   const result = await exec(command, opts);
   const stdout = result.stdout.toString();
@@ -48,12 +50,12 @@ export const wrappedExec = async (
     console.log(stdout);
   }
   return result;
-}
+};
 
 interface RunOptions {
   debug?: boolean;
   captureOutput?: boolean;
-};
+}
 
 interface TestRunOutput {
   stdout: string;
@@ -73,7 +75,6 @@ export const runWithEnv = async (
   env: EnvironmentVariables,
   opts?: RunOptions,
 ) => {
-
   const envVars: string[] = [];
 
   for (let [key, value] of Object.entries(env)) {
@@ -89,21 +90,33 @@ export const runWithEnv = async (
 
   const nodeCmd = [
     'node',
-    ... (opts?.debug ? ['--inspect-brk'] : []),
+    ...(opts?.debug ? ['--inspect-brk'] : []),
     '-r',
     'ts-node/register/transpile-only',
-    'src'
+    'src',
   ];
 
-  const uid = process.getuid().toString();
+  const uid = process.getuid?.().toString() ?? '0';
 
   const ps = child_process.spawn(
     'docker',
-    ['exec', ...envVars, '-u', uid, 'test-node', 'npx', 'nyc', '--temp-dir', `./.nyc_output/${reportName}`, '--reporter=none', ...nodeCmd],
+    [
+      'exec',
+      ...envVars,
+      '-u',
+      uid,
+      'test-node',
+      'npx',
+      'nyc',
+      '--temp-dir',
+      `./.nyc_output/${reportName}`,
+      '--reporter=none',
+      ...nodeCmd,
+    ],
     {
       env: {
         ...process.env,
-        ...env
+        ...env,
       },
       stdio: opts?.captureOutput ? 'pipe' : 'inherit',
     },
@@ -111,26 +124,28 @@ export const runWithEnv = async (
 
   let output: TestRunOutput | undefined = undefined;
   if (opts?.captureOutput) {
-    const o = output = {
+    const o = (output = {
       stderr: '',
-      stdout: ''
-    };
+      stdout: '',
+    });
 
     for (const stream of ['stdout', 'stderr'] as const) {
-      ps[stream]?.on('data', data => {
+      ps[stream]?.on('data', (data) => {
         o[stream] += data;
       });
     }
   }
 
-  return new Promise<TestRunOutput | undefined>((resolve, reject) => ps.on('close', code => {
-    if (code !== 0) {
-      reject(new TestRunError('Process exited with code: ' + code, output));
-    } else {
-      resolve(output);
-    }
-  }));
-}
+  return new Promise<TestRunOutput | undefined>((resolve, reject) =>
+    ps.on('close', (code) => {
+      if (code !== 0) {
+        reject(new TestRunError('Process exited with code: ' + code, output));
+      } else {
+        resolve(output);
+      }
+    }),
+  );
+};
 
 interface ExtendedRunOptions extends RunOptions {
   excludeEventPath?: true;
@@ -154,11 +169,11 @@ export const runWithGithubEnv = async (
     ...(actor ? { GITHUB_ACTOR: actor } : {}),
     ...(repo ? { GITHUB_REPOSITORY: repo } : {}),
     ...(opts?.excludeEventPath ? {} : { GITHUB_EVENT_PATH: file }),
-  }
+  };
 
   const output = {
     stderr: '',
-    stdout: ''
+    stdout: '',
   };
   const log: Console = {
     log: (...msg: unknown[]) => {
@@ -183,24 +198,25 @@ export const runWithGithubEnv = async (
 
   return await main({
     env: finalEnv,
-    log: log
-  }).then(async result => {
-    return result;
-  }).catch(async err => {
-    output.stderr += format(err) + '\n';
-    throw new TestRunError(format(err), output);
-  });
-}
+    log: log,
+  })
+    .then(async (result) => {
+      return result;
+    })
+    .catch(async (err) => {
+      output.stderr += format(err) + '\n';
+      throw new TestRunError(format(err), output);
+    });
+};
 
 /**
  * Get the full sha of this repo
  */
 export const getFullRepoSha = () =>
-  exec(`git rev-parse HEAD`, { cwd: TEST_DIR })
-    .then(r => r.stdout.trim());
+  exec(`git rev-parse HEAD`, { cwd: TEST_DIR }).then((r) => r.stdout.trim());
 
 /**
  * Get the short sha of this repo
  */
 export const getRepoSha = () =>
-  getFullRepoSha().then(sha => sha.substr(0, 7));
+  getFullRepoSha().then((sha) => sha.substr(0, 7));
