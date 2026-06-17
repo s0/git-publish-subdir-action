@@ -17,13 +17,13 @@ itGithubOnly('Deploy to another branch on self repo', async () => {
   const repo = process.env.GITHUB_SELF_TEST_REPO;
   if (!repo)
     throw new Error(
-      'Environment variable GITHUB_SELF_TEST_REPO not set, needed for tests'
+      'Environment variable GITHUB_SELF_TEST_REPO not set, needed for tests',
     );
 
   const token = process.env.GITHUB_SELF_TEST_TOKEN;
   if (!token)
     throw new Error(
-      'Environment variable GITHUB_SELF_TEST_TOKEN not set, needed for tests'
+      'Environment variable GITHUB_SELF_TEST_TOKEN not set, needed for tests',
     );
 
   // Create dummy data
@@ -43,7 +43,7 @@ itGithubOnly('Deploy to another branch on self repo', async () => {
     },
     repo,
     {},
-    's0'
+    's0',
   );
 
   // Check that the log of the repo is as expected

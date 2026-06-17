@@ -28,7 +28,7 @@ it('Skip empty commits', async () => {
     },
     's0/test',
     {},
-    's0'
+    's0',
   );
   const fullSha1 = await util.getFullRepoSha();
   // Change files and run action again
@@ -45,7 +45,7 @@ it('Skip empty commits', async () => {
     },
     's0/test',
     {},
-    's0'
+    's0',
   );
   const fullSha2 = await util.getFullRepoSha();
   // Run the action again with no content changes to test skip behaviour
@@ -61,7 +61,7 @@ it('Skip empty commits', async () => {
     },
     's0/test',
     {},
-    's0'
+    's0',
   );
 
   // Check that the log of the repo is as expected
@@ -72,7 +72,7 @@ it('Skip empty commits', async () => {
       'git log --pretty="format:msg:%B%ntree:%T%nauthor:%an <%ae>" branch-a',
       {
         cwd: folders.repoDir,
-      }
+      },
     )
   ).stdout;
   const sha1 = fullSha1.substr(0, 7);

@@ -53,7 +53,7 @@ it('Deploy to a branch on a custom dir that does not exist', async () => {
     },
     's0/test',
     {},
-    's0'
+    's0',
   );
 
   // Check that the list of files in the root of the target repo is as expected
@@ -77,7 +77,7 @@ it('Deploy to a branch on a custom dir that does not exist', async () => {
       'git log --pretty="format:msg:%s%ntree:%T%nauthor:%an <%ae>" master',
       {
         cwd: folders.repoDir,
-      }
+      },
     )
   ).stdout;
   const sha = await util.getRepoSha();

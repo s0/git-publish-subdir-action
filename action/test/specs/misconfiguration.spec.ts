@@ -39,7 +39,7 @@ describe('Misconfigurations', () => {
         's0',
         {
           captureOutput: true,
-        }
+        },
       )
       .then(() => {
         throw new Error('Expected error');
@@ -72,7 +72,7 @@ describe('Misconfigurations', () => {
         's0',
         {
           captureOutput: true,
-        }
+        },
       )
       .then(() => {
         throw new Error('Expected error');
@@ -81,7 +81,7 @@ describe('Misconfigurations', () => {
         try {
           expect(err.output).toBeDefined();
           expect(
-            err.output?.stderr.includes('REPO must be specified')
+            err.output?.stderr.includes('REPO must be specified'),
           ).toBeTruthy();
         } catch (e) {
           console.log(err);
@@ -106,7 +106,7 @@ describe('Misconfigurations', () => {
         's0',
         {
           captureOutput: true,
-        }
+        },
       )
       .then(() => {
         throw new Error('Expected error');
@@ -115,7 +115,7 @@ describe('Misconfigurations', () => {
         try {
           expect(err.output).toBeDefined();
           expect(
-            err.output?.stderr.includes('FOLDER must be specified')
+            err.output?.stderr.includes('FOLDER must be specified'),
           ).toBeTruthy();
         } catch (e) {
           console.log(err);
@@ -140,7 +140,7 @@ describe('Misconfigurations', () => {
         's0',
         {
           captureOutput: true,
-        }
+        },
       )
       .then(() => {
         throw new Error('Expected error');
@@ -149,7 +149,7 @@ describe('Misconfigurations', () => {
         try {
           expect(err.output).toBeDefined();
           expect(
-            err.output?.stderr.includes('BRANCH must be specified')
+            err.output?.stderr.includes('BRANCH must be specified'),
           ).toBeTruthy();
         } catch (e) {
           console.log(err);
@@ -179,7 +179,7 @@ describe('Misconfigurations', () => {
         {
           captureOutput: true,
           excludeEventPath: true,
-        }
+        },
       )
       .then(() => {
         throw new Error('Expected error');
@@ -188,7 +188,7 @@ describe('Misconfigurations', () => {
         try {
           expect(err.output).toBeDefined();
           expect(
-            err.output?.stderr.includes('Expected GITHUB_EVENT_PATH')
+            err.output?.stderr.includes('Expected GITHUB_EVENT_PATH'),
           ).toBeTruthy();
         } catch (e) {
           console.log(err);
@@ -214,7 +214,7 @@ describe('Misconfigurations', () => {
         's0',
         {
           captureOutput: true,
-        }
+        },
       )
       .then(() => {
         throw new Error('Expected error');
@@ -224,8 +224,8 @@ describe('Misconfigurations', () => {
           expect(err.output).toBeDefined();
           expect(
             err.output?.stderr.includes(
-              'SSH_PRIVATE_KEY must be specified when REPO uses ssh'
-            )
+              'SSH_PRIVATE_KEY must be specified when REPO uses ssh',
+            ),
           ).toBeTruthy();
         } catch (e) {
           console.log(err);
@@ -251,7 +251,7 @@ describe('Misconfigurations', () => {
         's0',
         {
           captureOutput: true,
-        }
+        },
       )
       .then(() => {
         throw new Error('Expected error');
@@ -260,7 +260,7 @@ describe('Misconfigurations', () => {
         try {
           expect(err.output).toBeDefined();
           expect(
-            err.output?.stderr.includes('Unsupported REPO URL')
+            err.output?.stderr.includes('Unsupported REPO URL'),
           ).toBeTruthy();
         } catch (e) {
           console.log(err);
@@ -289,7 +289,7 @@ describe('Misconfigurations', () => {
         's0',
         {
           captureOutput: true,
-        }
+        },
       )
       .then(() => {
         throw new Error('Expected error');
@@ -321,7 +321,7 @@ describe('Misconfigurations', () => {
         's0',
         {
           captureOutput: true,
-        }
+        },
       )
       .then(() => {
         throw new Error('Expected error');
@@ -331,8 +331,8 @@ describe('Misconfigurations', () => {
           expect(err.output).toBeDefined();
           expect(
             err.output?.stderr.includes(
-              'GITHUB_TOKEN must be specified when REPO == self'
-            )
+              'GITHUB_TOKEN must be specified when REPO == self',
+            ),
           ).toBeTruthy();
         } catch (e) {
           console.log(err);
@@ -359,7 +359,7 @@ describe('Misconfigurations', () => {
         's0',
         {
           captureOutput: true,
-        }
+        },
       )
       .then(() => {
         throw new Error('Expected error');
@@ -369,8 +369,8 @@ describe('Misconfigurations', () => {
           expect(err.output).toBeDefined();
           expect(
             err.output?.stderr.includes(
-              'GITHUB_REPOSITORY must be specified when REPO == self'
-            )
+              'GITHUB_REPOSITORY must be specified when REPO == self',
+            ),
           ).toBeTruthy();
         } catch (e) {
           console.log(err);

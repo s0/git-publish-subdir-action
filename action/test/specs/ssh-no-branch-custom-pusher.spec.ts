@@ -33,7 +33,7 @@ it('Custom Pusher', async () => {
         name: 'Alice Bob',
       },
     },
-    's0'
+    's0',
   );
 
   // Check that the log of the repo is as expected
@@ -43,7 +43,7 @@ it('Custom Pusher', async () => {
       'git log --pretty="format:msg:%s%ntree:%T%nauthor:%an <%ae>" branch-a',
       {
         cwd: folders.repoDir,
-      }
+      },
     )
   ).stdout;
   const sha = await util.getRepoSha();
@@ -76,7 +76,7 @@ it('Custom Pusher (invalid)', async () => {
     {
       pusher: {},
     },
-    's0'
+    's0',
   );
 
   // Check that the log of the repo is as expected
@@ -86,7 +86,7 @@ it('Custom Pusher (invalid)', async () => {
       'git log --pretty="format:msg:%s%ntree:%T%nauthor:%an <%ae>" branch-a',
       {
         cwd: folders.repoDir,
-      }
+      },
     )
   ).stdout;
   const sha = await util.getRepoSha();
@@ -115,7 +115,7 @@ it('No Pusher or Actor', async () => {
       SSH_PRIVATE_KEY: (await fs.readFile(util.SSH_PRIVATE_KEY)).toString(),
       KNOWN_HOSTS_FILE: util.KNOWN_HOSTS,
     },
-    's0/test'
+    's0/test',
   );
 
   // Check that the log of the repo is as expected
@@ -125,7 +125,7 @@ it('No Pusher or Actor', async () => {
       'git log --pretty="format:msg:%s%ntree:%T%nauthor:%an <%ae>" branch-a',
       {
         cwd: folders.repoDir,
-      }
+      },
     )
   ).stdout;
   const sha = await util.getRepoSha();

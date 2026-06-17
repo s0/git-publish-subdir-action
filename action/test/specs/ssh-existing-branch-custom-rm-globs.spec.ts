@@ -48,7 +48,7 @@ it('Check that only target deleted files are removed', async () => {
     folder/*
     !folder/a
     ini*al2
-    `
+    `,
   );
 
   // Run Action
@@ -64,7 +64,7 @@ it('Check that only target deleted files are removed', async () => {
     },
     's0/test',
     {},
-    's0'
+    's0',
   );
 
   // Check that the list of files in the root of the target repo is as expected
@@ -85,7 +85,7 @@ it('Check that only target deleted files are removed', async () => {
       'git log --pretty="format:msg:%s%ntree:%T%nauthor:%an <%ae>" master',
       {
         cwd: folders.repoDir,
-      }
+      },
     )
   ).stdout;
   const sha = await util.getRepoSha();

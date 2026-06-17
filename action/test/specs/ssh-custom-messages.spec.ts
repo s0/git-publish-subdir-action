@@ -28,7 +28,7 @@ it('Test custom message templates', async () => {
     },
     's0/test',
     {},
-    's0'
+    's0',
   );
   // Run the action again to make sure that a commit is added even when there are
   // no content changes
@@ -44,7 +44,7 @@ it('Test custom message templates', async () => {
     },
     's0/test',
     {},
-    's0'
+    's0',
   );
 
   // Check that the log of the repo is as expected
@@ -55,7 +55,7 @@ it('Test custom message templates', async () => {
       'git log --pretty="format:msg:%B%ntree:%T%nauthor:%an <%ae>" branch-a',
       {
         cwd: folders.repoDir,
-      }
+      },
     )
   ).stdout;
   const fullSha = await util.getFullRepoSha();
